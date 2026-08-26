@@ -5,6 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://dhbackend-2.onrender.co
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 90000,
 });
 
 api.interceptors.request.use((config) => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -6,6 +6,7 @@ import { useSettings } from '../../context/SettingsContext';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import { isNetworkError, wakeServer } from '../../utils/serverWake';
 
 const Login = () => {
   const { t } = useTranslation();
@@ -14,8 +15,21 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [wakingServer, setWakingServer] = useState(true);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let active = true;
+
+    wakeServer().finally(() => {
+      if (active) setWakingServer(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +48,11 @@ const Login = () => {
       toast.success(t('auth.loginSuccess'));
       navigate(`/${user.role}/dashboard`);
     } catch (err) {
-      toast.error(err.response?.data?.message || t('auth.loginFailed'));
+      if (isNetworkError(err)) {
+        toast.error(t('auth.serverTimeout'));
+      } else {
+        toast.error(err.response?.data?.message || t('auth.loginFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -86,8 +104,13 @@ const Login = () => {
           <div className="flex justify-end">
             <Link to="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700">{t('auth.forgotPassword')}</Link>
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-            {loading ? t('auth.signingIn') : t('auth.signIn')}
+          {wakingServer && (
+            <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
+              {t('auth.serverWaking')}
+            </p>
+          )}
+          <button type="submit" disabled={loading || wakingServer} className="btn-primary w-full py-3">
+            {loading ? t('auth.signingIn') : wakingServer ? t('auth.serverWaking') : t('auth.signIn')}
           </button>
         </form>
       </div>

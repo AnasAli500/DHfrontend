@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/axios';
+import { isNetworkError, wakeServer } from '../utils/serverWake';
 
 const AuthContext = createContext(null);
 
@@ -30,11 +31,27 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data));
-    setUser(data);
-    return data;
+    const performLogin = async () => {
+      const { data } = await api.post('/auth/login', { email, password });
+      return data;
+    };
+
+    try {
+      const data = await performLogin();
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      setUser(data);
+      return data;
+    } catch (error) {
+      if (!isNetworkError(error)) throw error;
+
+      await wakeServer(2);
+      const data = await performLogin();
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      setUser(data);
+      return data;
+    }
   };
 
   const logout = () => {

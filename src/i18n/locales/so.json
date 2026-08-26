@@ -69,6 +69,8 @@
     "schoolManagementSystem": "Nidaamka Maaraynta Dugsiga",
     "loginSuccess": "Si guul leh ayaad u gashatay!",
     "loginFailed": "Galitaanku wuu guul-daraystay",
+    "serverWaking": "Server-ka waa la bilaabayaa, fadlan sug...",
+    "serverTimeout": "Server-ka wuu hurdaa. Fadlan sug kadib mar kale isku day.",
     "emailPasswordRequired": "Iimayl iyo furaha sirta ayaa loo baahan yahay",
     "passwordMinLength": "Furaha sirta waa inuu ahaadaa ugu yaraan 8 xaraf"
   },

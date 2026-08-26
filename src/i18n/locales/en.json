@@ -69,6 +69,8 @@
     "schoolManagementSystem": "School Management System",
     "loginSuccess": "Login successful!",
     "loginFailed": "Login failed",
+    "serverWaking": "Starting server, please wait...",
+    "serverTimeout": "Server is waking up. Please wait a moment and try again.",
     "emailPasswordRequired": "Email and password are required",
     "passwordMinLength": "Password must be at least 8 characters"
   },
