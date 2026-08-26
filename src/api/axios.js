@@ -1,13 +1,7 @@
 import axios from 'axios';
 
-const rawApiUrl = (import.meta.env && import.meta.env.VITE_API_URL) || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || '';
-const cleanApiUrl = rawApiUrl.replace(/\/$/, '');
-const baseURL = cleanApiUrl
-  ? (cleanApiUrl.endsWith('/api') ? cleanApiUrl : `${cleanApiUrl}/api`)
-  : '/api';
-
 const api = axios.create({
-  baseURL,
+  baseURL: import.meta.env.VITE_API_URL || 'https://dhbackend-2.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
 });
 

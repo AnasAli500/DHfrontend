@@ -43,9 +43,7 @@ export const SettingsProvider = ({ children }) => {
     if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
       return path;
     }
-    const rawApiUrl = (import.meta.env && import.meta.env.VITE_API_URL) || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || '';
-    const cleanApiUrl = rawApiUrl.replace(/\/$/, '');
-    return cleanApiUrl ? `${cleanApiUrl}${path.startsWith('/') ? '' : '/'}${path}` : path;
+    return path; // Proxied by Vite or relative URL
   };
 
   return (
