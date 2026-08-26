@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+  .input-field {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition;
+  }
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6;
+  }
+  .stat-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex items-center gap-4;
+  }
+}
+
+/* ============================================================
+   RTL SUPPORT — Arabic language only
+   These rules flip layout when dir="rtl" is set on <html>
+   ============================================================ */
+
+/* Sidebar: RTL flips it to the right side */
+[dir="rtl"] aside.fixed.left-0 {
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 1px solid;
+}
+
+/* Header: RTL adjusts the offset from the sidebar */
+[dir="rtl"] header.fixed {
+  right: 0;
+  left: 0;
+}
+[dir="rtl"] header.left-16 {
+  left: 0;
+  padding-right: 4rem; /* 16 = w-16 sidebar */
+}
+[dir="rtl"] header.left-64 {
+  left: 0;
+  padding-right: 16rem; /* 64 = w-64 sidebar */
+}
+
+/* Main content: RTL mirrors margin from sidebar */
+[dir="rtl"] .ml-16 { margin-left: 0; margin-right: 4rem; }
+[dir="rtl"] .ml-64 { margin-left: 0; margin-right: 16rem; }
+
+/* Table headers: RTL uses text-right instead of text-left */
+[dir="rtl"] th.text-left { text-align: right; }
+[dir="rtl"] th.text-right { text-align: left; }
+[dir="rtl"] td.text-right { text-align: left; }
+[dir="rtl"] td.text-left { text-align: right; }
+
+/* Flex rows: keep natural flow in RTL */
+[dir="rtl"] .flex { flex-direction: row; }
+
+/* Icons in inputs that are positioned left in LTR go right in RTL */
+[dir="rtl"] .left-3 { left: auto; right: 0.75rem; }
+[dir="rtl"] input.pl-10 { padding-left: 1rem; padding-right: 2.5rem; }
+
+/* Chevron icons in sidebar toggle */
+[dir="rtl"] .chevron-toggle { transform: scaleX(-1); }
+
+/* Dropdown menus: RTL aligns to the left */
+[dir="rtl"] .dropdown-menu {
+  right: auto;
+  left: 0;
+}
+
+/* Arabic font support */
+[dir="rtl"] body {
+  font-family: 'Segoe UI', 'Arial', 'Noto Sans Arabic', sans-serif;
+}
+
+/* Text alignment helpers for RTL */
+[dir="rtl"] .text-start { text-align: right; }
+[dir="rtl"] .text-end { text-align: left; }
+
+/* Padding/margin logical properties */
+[dir="rtl"] .pl-3 { padding-left: 0; padding-right: 0.75rem; }
+[dir="rtl"] .pl-4 { padding-left: 0; padding-right: 1rem; }
+[dir="rtl"] .pl-10 { padding-left: 0; padding-right: 2.5rem; }
+[dir="rtl"] .pr-10 { padding-right: 0; padding-left: 2.5rem; }
+[dir="rtl"] .ml-2 { margin-left: 0; margin-right: 0.5rem; }
+[dir="rtl"] .mr-1 { margin-right: 0; margin-left: 0.25rem; }
+
+/* Border sides for RTL */
+[dir="rtl"] .border-l { border-left: none; border-right: 1px solid; }
+[dir="rtl"] .pl-3.border-l { padding-left: 0; padding-right: 0.75rem; }
+
+/* Pagination arrows: RTL flips direction */
+[dir="rtl"] .pagination-prev { order: 1; }
+[dir="rtl"] .pagination-next { order: -1; }
+
+/* ============================================================
+   GLOBAL PRINT OPTIMIZATIONS (1-PAGE FIT FOR EXAM RESULTS & REPORT CARDS)
+   ============================================================ */
+@media print {
+  @page {
+    margin: 5mm;
+  }
+
+  html, body, #root, main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  main, .ml-64, .ml-16, .pt-16, .p-6 {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .print\:hidden,
+  nav,
+  aside,
+  header,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  tr, td, th {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-single-page {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    max-height: 99vh !important;
+    overflow: hidden !important;
+  }
+}
+
