@@ -6,14 +6,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': {
-        target: process.env.VITE_API_URL ? process.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'https://dhbackend-2.onrender.com',
-        changeOrigin: true,
-      },
-      '/uploads': {
-        target: process.env.VITE_API_URL ? process.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'https://dhbackend-2.onrender.com',
-        changeOrigin: true,
-      },
+      '/api': 'http://localhost:5000',
+      '/uploads': 'http://localhost:5000',
     },
   },
 });
