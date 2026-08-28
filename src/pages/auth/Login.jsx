@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap, Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, ShieldCheck, Sparkles, BookOpen } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, ShieldCheck, Sparkles, BookOpen, Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import toast from 'react-hot-toast';
@@ -221,29 +221,39 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading || wakingServer}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-primary-600/30 hover:shadow-primary-600/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transform active:scale-[0.99]"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>{t('auth.signingIn')}</span>
-                  </>
-                ) : wakingServer ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>{t('auth.serverWaking')}</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{t('auth.signIn')}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {/* Action Buttons: Login & View Result */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="submit"
+                  disabled={loading || wakingServer}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-primary-600/30 hover:shadow-primary-600/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transform active:scale-[0.99]"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>{t('auth.signingIn')}</span>
+                    </>
+                  ) : wakingServer ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>{t('auth.serverWaking')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{t('auth.signIn')}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                <Link
+                  to="/result-search"
+                  className="w-full py-3.5 px-4 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-white font-semibold text-sm rounded-xl shadow-md hover:shadow-slate-700/30 transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-[0.99]"
+                >
+                  <Search className="w-4 h-4 text-primary-400" />
+                  <span>View Result</span>
+                </Link>
+              </div>
             </form>
           </div>
         </div>

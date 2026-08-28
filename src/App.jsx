@@ -10,6 +10,7 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 import Login from './pages/auth/Login';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
+import ResultSearch from './pages/auth/ResultSearch';
 import NotFound from './pages/NotFound';
 import Profile from './pages/Profile';
 
@@ -47,6 +48,7 @@ const RoleRedirect = () => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/result-search" element={<ResultSearch />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password/:token" element={<ResetPassword />} />
     <Route path="/" element={<RoleRedirect />} />
