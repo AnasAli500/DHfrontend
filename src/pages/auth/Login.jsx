@@ -102,9 +102,9 @@ const Login = () => {
                 {schoolDisplayName}
               </span>
             </h1>
-            <p className="mt-4 text-slate-400 text-sm leading-relaxed">
+            {/* <p className="mt-4 text-slate-400 text-sm leading-relaxed">
               Empowering education through seamless digital management. Access grades, attendance, exam records, and institution insights in one place.
-            </p>
+            </p> */}
 
             {/* Feature Highlights */}
             <div className="mt-8 space-y-3.5 hidden sm:block">
