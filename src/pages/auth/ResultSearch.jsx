@@ -290,8 +290,7 @@ const ResultSearch = () => {
                     <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
                       <tr>
                         <th className="py-3 px-4">Subject</th>
-                        <th className="py-3 px-4 text-center">Marks Obtained</th>
-                        <th className="py-3 px-4 text-center">Max Marks</th>
+                        <th className="py-3 px-4 text-center">Final Exam</th>
                         <th className="py-3 px-4 text-center">Percentage</th>
                         <th className="py-3 px-4 text-center">Grade</th>
                         <th className="py-3 px-4 text-center">Status</th>
@@ -304,7 +303,6 @@ const ResultSearch = () => {
                           <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
                             <td className="py-3 px-4 font-semibold text-white">{sub.subject}</td>
                             <td className="py-3 px-4 text-center font-mono text-slate-200 font-bold">{sub.marksObtained}</td>
-                            <td className="py-3 px-4 text-center font-mono text-slate-400">{sub.maxMarks}</td>
                             <td className="py-3 px-4 text-center font-semibold text-primary-400">{sub.percentage}</td>
                             <td className="py-3 px-4 text-center font-bold text-purple-300">{sub.grade}</td>
                             <td className="py-3 px-4 text-center">
