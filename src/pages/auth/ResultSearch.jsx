@@ -10,6 +10,7 @@ import {
   Printer,
   BookOpen,
   User,
+  Award,
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useTranslation } from 'react-i18next';
@@ -198,7 +199,7 @@ const ResultSearch = () => {
 
             {/* Student Info Card */}
             <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs">
                 <div>
                   <span className="text-slate-500 uppercase tracking-wider font-semibold block mb-1">Student Name</span>
                   <span className="text-white font-bold text-sm sm:text-base">{resultData.studentInfo.name}</span>
@@ -215,11 +216,18 @@ const ResultSearch = () => {
                   <span className="text-slate-500 uppercase tracking-wider font-semibold block mb-1">Academic Year</span>
                   <span className="text-slate-200 font-semibold">{resultData.studentInfo.academicYear}</span>
                 </div>
+                <div>
+                  <span className="text-slate-500 uppercase tracking-wider font-semibold block mb-1">Class Rank</span>
+                  <span className="text-amber-400 font-bold text-sm sm:text-base inline-flex items-center gap-1">
+                    <Award className="w-4 h-4 text-amber-400" />
+                    {resultData.summary.rank || resultData.summary.classRank || 'N/A'}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Performance Summary Banner */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl text-center">
                 <span className="text-[11px] text-slate-400 uppercase tracking-wider block mb-1 font-semibold">Total Marks</span>
                 <span className="text-lg sm:text-xl font-extrabold text-white">
@@ -238,6 +246,14 @@ const ResultSearch = () => {
                 <span className="text-[11px] text-slate-400 uppercase tracking-wider block mb-1 font-semibold">Overall Grade</span>
                 <span className="text-lg sm:text-xl font-extrabold text-purple-400">
                   {resultData.summary.overallGrade}
+                </span>
+              </div>
+
+              <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl text-center">
+                <span className="text-[11px] text-slate-400 uppercase tracking-wider block mb-1 font-semibold">Class Rank</span>
+                <span className="text-lg sm:text-xl font-extrabold text-amber-400 flex items-center justify-center gap-1">
+                  <Award className="w-4 h-4 text-amber-400 inline" />
+                  {resultData.summary.rank || resultData.summary.classRank || 'N/A'}
                 </span>
               </div>
 
