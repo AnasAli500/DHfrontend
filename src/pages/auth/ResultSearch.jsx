@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { isGradePassed } from '../../utils/gradeCalculator';
 
 const ResultSearch = () => {
   const { t } = useTranslation();
@@ -242,13 +243,18 @@ const ResultSearch = () => {
 
               <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl text-center">
                 <span className="text-[11px] text-slate-400 uppercase tracking-wider block mb-1 font-semibold">Result Status</span>
-                <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full ${
-                  resultData.summary.isOverallPassed
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                }`}>
-                  {resultData.summary.isOverallPassed ? 'PASSED' : 'FAILED'}
-                </span>
+                {(() => {
+                  const isPassed = isGradePassed(resultData.summary.overallGrade) || resultData.summary.isOverallPassed;
+                  return (
+                    <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full ${
+                      isPassed
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                      {isPassed ? 'PASSED' : 'FAILED'}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 
@@ -276,24 +282,27 @@ const ResultSearch = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
-                      {resultData.subjectResults.map((sub, idx) => (
-                        <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-white">{sub.subject}</td>
-                          <td className="py-3 px-4 text-center font-mono text-slate-200 font-bold">{sub.marksObtained}</td>
-                          <td className="py-3 px-4 text-center font-mono text-slate-400">{sub.maxMarks}</td>
-                          <td className="py-3 px-4 text-center font-semibold text-primary-400">{sub.percentage}</td>
-                          <td className="py-3 px-4 text-center font-bold text-purple-300">{sub.grade}</td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-md font-bold text-[11px] ${
-                              sub.status === 'Pass'
-                                ? 'bg-emerald-500/10 text-emerald-400'
-                                : 'bg-red-500/10 text-red-400'
-                            }`}>
-                              {sub.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {resultData.subjectResults.map((sub, idx) => {
+                        const isSubPassed = isGradePassed(sub.grade) || sub.status === 'Pass' || sub.status === 'PASS';
+                        return (
+                          <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="py-3 px-4 font-semibold text-white">{sub.subject}</td>
+                            <td className="py-3 px-4 text-center font-mono text-slate-200 font-bold">{sub.marksObtained}</td>
+                            <td className="py-3 px-4 text-center font-mono text-slate-400">{sub.maxMarks}</td>
+                            <td className="py-3 px-4 text-center font-semibold text-primary-400">{sub.percentage}</td>
+                            <td className="py-3 px-4 text-center font-bold text-purple-300">{sub.grade}</td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`inline-block px-2.5 py-0.5 rounded-md font-bold text-[11px] ${
+                                isSubPassed
+                                  ? 'bg-emerald-500/10 text-emerald-400'
+                                  : 'bg-red-500/10 text-red-400'
+                              }`}>
+                                {isSubPassed ? 'Pass' : 'Fail'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
