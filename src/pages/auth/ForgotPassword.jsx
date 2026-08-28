@@ -24,16 +24,21 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 to-primary-800 p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative flex items-center justify-center bg-slate-950 p-4 font-sans overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-primary-600/30 rounded-full blur-[128px] pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/30 rounded-full blur-[128px] pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <GraduationCap className="w-8 h-8 text-primary-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-2xl shadow-xl shadow-primary-600/30 mb-4 border border-white/10">
+            <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Forgot Password</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Forgot Password</h1>
+          <p className="text-slate-400 text-sm mt-1">DhambaalSchool Password Recovery</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl shadow-2xl p-8">
           {sent ? (
             <div className="text-center space-y-4">
               <p className="text-gray-600 dark:text-gray-300">Check your email for the reset link.</p>
