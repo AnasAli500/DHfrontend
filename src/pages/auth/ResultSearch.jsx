@@ -298,13 +298,44 @@ const ResultSearch = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
                       {resultData.subjectResults.map((sub, idx) => {
+                        const obt = sub.marksObtained !== undefined ? sub.marksObtained : (sub.marks !== undefined ? sub.marks : parseFloat(sub.percentage));
+                        const isBelow50 = obt !== undefined && obt !== null && Number(obt) < 50;
                         const isSubPassed = isGradePassed(sub.grade) || sub.status === 'Pass' || sub.status === 'PASS';
                         return (
                           <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
-                            <td className="py-3 px-4 font-semibold text-white">{sub.subject}</td>
-                            <td className="py-3 px-4 text-center font-mono text-slate-200 font-bold">{sub.marksObtained}</td>
-                            <td className="py-3 px-4 text-center font-semibold text-primary-400">{sub.percentage}</td>
-                            <td className="py-3 px-4 text-center font-bold text-purple-300">{sub.grade}</td>
+                            <td className="py-3 px-4 font-semibold">
+                              <div className="relative group inline-block">
+                                <span
+                                  className={`cursor-pointer transition-colors ${
+                                    isBelow50 ? 'text-red-400 font-bold' : 'text-white'
+                                  }`}
+                                  title={`Subject: ${sub.subject}`}
+                                >
+                                  {sub.subject}
+                                </span>
+                                <div className="pointer-events-none absolute left-0 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                                  <div className="bg-slate-800 text-white text-xs font-semibold py-1 px-2.5 rounded shadow-lg border border-slate-700">
+                                    Subject: {sub.subject}
+                                  </div>
+                                  <div className="w-2 h-2 -mt-1 rotate-45 bg-slate-800"></div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className={`py-3 px-4 text-center font-mono font-bold ${
+                              isBelow50 ? 'text-red-400' : 'text-slate-200'
+                            }`}>
+                              {sub.marksObtained}
+                            </td>
+                            <td className={`py-3 px-4 text-center font-semibold ${
+                              isBelow50 ? 'text-red-400' : 'text-primary-400'
+                            }`}>
+                              {sub.percentage}
+                            </td>
+                            <td className={`py-3 px-4 text-center font-bold ${
+                              isBelow50 ? 'text-red-400' : 'text-purple-300'
+                            }`}>
+                              {sub.grade}
+                            </td>
                             <td className="py-3 px-4 text-center">
                               <span className={`inline-block px-2.5 py-0.5 rounded-md font-bold text-[11px] ${
                                 isSubPassed

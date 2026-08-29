@@ -933,7 +933,11 @@ const ViewExamResults = () => {
 
                       {resultsData.viewType === 'single' ? (
                         <>
-                          <th className="px-4 py-3.5">Subject</th>
+                          <th className="px-4 py-3.5">
+                            <div className="relative group inline-block">
+                              <span>Subject</span>
+                            </div>
+                          </th>
                           {resultsData.isCombined ? (
                             resultsData.selectedExamTypes?.map(t => (
                               <th key={t} className="px-4 py-3.5 text-center">{t}</th>
@@ -946,7 +950,19 @@ const ViewExamResults = () => {
                       ) : (
                         <>
                           {resultsData.subjects?.map(subj => (
-                            <th key={subj} className="px-4 py-3.5 text-center">{subj}</th>
+                            <th key={subj} className="px-4 py-3.5 text-center">
+                              <div className="relative group inline-block">
+                                <span className="cursor-pointer" title={`Subject: ${subj}`}>
+                                  {subj}
+                                </span>
+                                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                                  <div className="bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-1 px-2.5 rounded shadow-lg border border-gray-700 dark:border-gray-300">
+                                    Subject: {subj}
+                                  </div>
+                                  <div className="w-2 h-2 -mt-1 rotate-45 bg-gray-900 dark:bg-gray-100"></div>
+                                </div>
+                              </div>
+                            </th>
                           ))}
                           <th className="px-4 py-3.5 text-center">Total Marks</th>
                           <th className="px-4 py-3.5 text-center">Average</th>
@@ -962,6 +978,9 @@ const ViewExamResults = () => {
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {filteredResults.map((r) => {
                       const isSelected = selectedStudentIds.has(r.studentId);
+                      const totalObt = r.totalObtained ?? r.marksObtained ?? parseFloat(r.totalDisplay);
+                      const singleBelow50 = resultsData.viewType === 'single' && totalObt !== undefined && totalObt !== null && Number(totalObt) < 50;
+
                       return (
                         <tr
                           key={r.studentId}
@@ -1004,12 +1023,31 @@ const ViewExamResults = () => {
 
                           {resultsData.viewType === 'single' ? (
                             <>
-                              <td className="px-4 py-3.5 text-sm text-gray-700 dark:text-gray-300 font-medium">{r.subject}</td>
+                              <td className="px-4 py-3.5 text-sm font-medium">
+                                <div className="relative group inline-block">
+                                  <span
+                                    className={`cursor-pointer transition-colors ${
+                                      singleBelow50 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-700 dark:text-gray-300'
+                                    }`}
+                                    title={`Subject: ${r.subject}`}
+                                  >
+                                    {r.subject}
+                                  </span>
+                                  <div className="pointer-events-none absolute left-0 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                                    <div className="bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-1 px-2.5 rounded shadow-lg border border-gray-700 dark:border-gray-300">
+                                      Subject: {r.subject}
+                                    </div>
+                                    <div className="w-2 h-2 -mt-1 rotate-45 bg-gray-900 dark:bg-gray-100"></div>
+                                  </div>
+                                </div>
+                              </td>
                               {resultsData.isCombined ? (
                                 resultsData.selectedExamTypes?.map(t => (
                                   <td key={t} className="px-4 py-3.5 text-center font-mono">
                                     {r.examTypeMarks && r.examTypeMarks[t] !== undefined && r.examTypeMarks[t] !== null ? (
-                                      <span className="font-bold text-sm text-gray-900 dark:text-white">{r.examTypeMarks[t]}</span>
+                                      <span className={`font-bold text-sm ${singleBelow50 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                                        {r.examTypeMarks[t]}
+                                      </span>
                                     ) : (
                                       <span className="text-gray-400 dark:text-gray-600">-</span>
                                     )}
@@ -1017,29 +1055,45 @@ const ViewExamResults = () => {
                                 ))
                               ) : null}
 
-                              <td className="px-4 py-3.5 text-center font-mono font-bold text-sm text-gray-900 dark:text-white">
-                                {r.totalObtained ?? r.marksObtained ?? r.totalDisplay}
+                              <td className="px-4 py-3.5 text-center font-mono font-bold text-sm">
+                                <span className={singleBelow50 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}>
+                                  {r.totalObtained ?? r.marksObtained ?? r.totalDisplay}
+                                </span>
                               </td>
-                              <td className="px-4 py-3.5 text-center text-sm font-bold text-blue-600 dark:text-blue-400">{r.percentage}%</td>
+                              <td className={`px-4 py-3.5 text-center text-sm font-bold ${
+                                singleBelow50 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'
+                              }`}>
+                                {r.percentage}%
+                              </td>
                               <td className="px-4 py-3.5 text-center">
-                                <span className="px-2.5 py-1 rounded text-sm font-bold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <span className={`px-2.5 py-1 rounded text-sm font-bold ${
+                                  singleBelow50
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                                }`}>
                                   {r.grade}
                                 </span>
                               </td>
                             </>
                           ) : (
                             <>
-                              {resultsData.subjects?.map(subj => (
-                                <td key={subj} className="px-4 py-3.5 text-center font-mono">
-                                  {r.subjectMarks[subj] !== undefined ? (
-                                    <span className="font-bold text-sm text-gray-900 dark:text-white">
-                                      {typeof r.subjectMarks[subj] === 'object' ? (r.subjectMarks[subj].obtained ?? r.subjectMarks[subj].display) : r.subjectMarks[subj]}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-400 dark:text-gray-600">-</span>
-                                  )}
-                                </td>
-                              ))}
+                              {resultsData.subjects?.map(subj => {
+                                const valObj = r.subjectMarks ? r.subjectMarks[subj] : undefined;
+                                const markVal = typeof valObj === 'object' ? (valObj.obtained ?? parseFloat(valObj.display)) : parseFloat(valObj);
+                                const isSubjBelow50 = valObj !== undefined && !isNaN(markVal) && markVal < 50;
+
+                                return (
+                                  <td key={subj} className="px-4 py-3.5 text-center font-mono">
+                                    {valObj !== undefined ? (
+                                      <span className={`font-bold text-sm ${isSubjBelow50 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                                        {typeof valObj === 'object' ? (valObj.obtained ?? valObj.display) : valObj}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400 dark:text-gray-600">-</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
                               <td className="px-4 py-3.5 text-center font-mono font-bold text-sm text-gray-900 dark:text-white">{r.totalObtained ?? r.totalDisplay}</td>
                               <td className="px-4 py-3.5 text-center text-sm font-bold text-blue-600 dark:text-blue-400">{r.averageDisplay}</td>
                               <td className="px-4 py-3.5 text-center">

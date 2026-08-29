@@ -726,43 +726,70 @@ const ExamResults = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {tableRows.map((r) => (
-                      <tr key={r.idx} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                        <td className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-xs font-medium border-r border-gray-200 dark:border-gray-700">
-                          {r.idx + 1}
-                        </td>
-                        <td className="px-5 py-3 font-semibold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">
-                          {r.subject}
-                        </td>
-                        {allExamTypes.map(t => (
-                          <td key={t} className="px-4 py-3 text-center border-r border-gray-200 dark:border-gray-700 font-bold text-gray-900 dark:text-white">
-                            {r.examMap[t] !== undefined ? r.examMap[t] : r.marksObtained}
+                    {tableRows.map((r) => {
+                      const obt = r.marksObtained ?? r.marks;
+                      const isBelow50 = obt !== undefined && obt !== null && Number(obt) < 50;
+                      return (
+                        <tr key={r.idx} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                          <td className="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-xs font-medium border-r border-gray-200 dark:border-gray-700">
+                            {r.idx + 1}
                           </td>
-                        ))}
-                        <td className="px-4 py-3 text-center border-r border-gray-200 dark:border-gray-700">
-                          <span className="font-extrabold text-purple-600 dark:text-purple-400 text-base">
-                            {r.marksObtained}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center border-r border-gray-200 dark:border-gray-700">
-                          <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold ${
-                            r.passed ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                          }`}>
-                            {r.grade}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold ${
-                            r.passed
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
-                          }`}>
-                            {r.passed ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                            {r.statusText}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700">
+                            <div className="relative group inline-block">
+                              <span
+                                className={`cursor-pointer transition-colors ${
+                                  isBelow50 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-900 dark:text-white font-semibold'
+                                }`}
+                                title={`Subject: ${r.subject}`}
+                              >
+                                {r.subject}
+                              </span>
+                              <div className="pointer-events-none absolute left-0 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                                <div className="bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-1 px-2.5 rounded shadow-lg border border-gray-700 dark:border-gray-300">
+                                  Subject: {r.subject}
+                                </div>
+                                <div className="w-2 h-2 -mt-1 rotate-45 bg-gray-900 dark:bg-gray-100"></div>
+                              </div>
+                            </div>
+                          </td>
+                          {allExamTypes.map(t => (
+                            <td key={t} className={`px-4 py-3 text-center border-r border-gray-200 dark:border-gray-700 font-bold ${
+                              isBelow50 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'
+                            }`}>
+                              {r.examMap[t] !== undefined ? r.examMap[t] : r.marksObtained}
+                            </td>
+                          ))}
+                          <td className="px-4 py-3 text-center border-r border-gray-200 dark:border-gray-700">
+                            <span className={`font-extrabold text-base ${
+                              isBelow50 ? 'text-red-600 dark:text-red-400' : 'text-purple-600 dark:text-purple-400'
+                            }`}>
+                              {r.marksObtained}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center border-r border-gray-200 dark:border-gray-700">
+                            <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold ${
+                              isBelow50
+                                ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800'
+                                : r.passed
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                            }`}>
+                              {r.grade}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold ${
+                              r.passed
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                            }`}>
+                              {r.passed ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                              {r.statusText}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
 
                   <tfoot>
@@ -833,22 +860,76 @@ const ExamResults = () => {
             <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-sm overflow-hidden mb-4">
               <table className="w-full text-base border-collapse">
                 <tbody>
-                  {getSubjectColumns(subjectResults.map(s => ({ name: s.subject, grade: s.grade }))).map((row, idx) => (
-                    <tr key={idx} className="border-b border-gray-300 dark:border-gray-600 last:border-b-0">
-                      <td className="w-[35%] py-2.5 px-3 font-medium text-gray-800 dark:text-gray-200 border-r border-gray-300 dark:border-gray-600">
-                        {row.left ? row.left.name : ''}
-                      </td>
-                      <td className="w-[15%] py-2.5 px-2 font-bold text-gray-900 dark:text-white text-center border-r border-gray-300 dark:border-gray-600">
-                        {row.left ? row.left.grade : ''}
-                      </td>
-                      <td className="w-[35%] py-2.5 px-3 font-medium text-gray-800 dark:text-gray-200 border-r border-gray-300 dark:border-gray-600">
-                        {row.right ? row.right.name : ''}
-                      </td>
-                      <td className="w-[15%] py-2.5 px-2 font-bold text-gray-900 dark:text-white text-center">
-                        {row.right ? row.right.grade : ''}
-                      </td>
-                    </tr>
-                  ))}
+                  {getSubjectColumns(subjectResults.map(s => ({
+                    name: s.subject,
+                    grade: s.grade,
+                    marks: s.marksObtained ?? s.marks,
+                  }))).map((row, idx) => {
+                    const isLeftBelow50 = row.left && row.left.marks !== undefined && row.left.marks !== null && Number(row.left.marks) < 50;
+                    const isRightBelow50 = row.right && row.right.marks !== undefined && row.right.marks !== null && Number(row.right.marks) < 50;
+                    return (
+                      <tr key={idx} className="border-b border-gray-300 dark:border-gray-600 last:border-b-0">
+                        {/* Left Subject Name */}
+                        <td className="w-[35%] py-2.5 px-3 font-medium border-r border-gray-300 dark:border-gray-600">
+                          {row.left ? (
+                            <div className="relative group inline-block">
+                              <span
+                                className={`cursor-pointer transition-colors ${
+                                  isLeftBelow50 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-800 dark:text-gray-200'
+                                }`}
+                                title={`Subject: ${row.left.name}`}
+                              >
+                                {row.left.name}
+                              </span>
+                              <div className="pointer-events-none absolute left-0 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                                <div className="bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-1 px-2.5 rounded shadow-lg border border-gray-700 dark:border-gray-300">
+                                  Subject: {row.left.name}
+                                </div>
+                                <div className="w-2 h-2 -mt-1 rotate-45 bg-gray-900 dark:bg-gray-100"></div>
+                              </div>
+                            </div>
+                          ) : ''}
+                        </td>
+                        {/* Left Grade */}
+                        <td className="w-[15%] py-2.5 px-2 font-bold text-center border-r border-gray-300 dark:border-gray-600">
+                          {row.left ? (
+                            <span className={isLeftBelow50 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-900 dark:text-white'}>
+                              {row.left.grade}
+                            </span>
+                          ) : ''}
+                        </td>
+                        {/* Right Subject Name */}
+                        <td className="w-[35%] py-2.5 px-3 font-medium border-r border-gray-300 dark:border-gray-600">
+                          {row.right ? (
+                            <div className="relative group inline-block">
+                              <span
+                                className={`cursor-pointer transition-colors ${
+                                  isRightBelow50 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-800 dark:text-gray-200'
+                                }`}
+                                title={`Subject: ${row.right.name}`}
+                              >
+                                {row.right.name}
+                              </span>
+                              <div className="pointer-events-none absolute left-0 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                                <div className="bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-1 px-2.5 rounded shadow-lg border border-gray-700 dark:border-gray-300">
+                                  Subject: {row.right.name}
+                                </div>
+                                <div className="w-2 h-2 -mt-1 rotate-45 bg-gray-900 dark:bg-gray-100"></div>
+                              </div>
+                            </div>
+                          ) : ''}
+                        </td>
+                        {/* Right Grade */}
+                        <td className="w-[15%] py-2.5 px-2 font-bold text-center">
+                          {row.right ? (
+                            <span className={isRightBelow50 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-900 dark:text-white'}>
+                              {row.right.grade}
+                            </span>
+                          ) : ''}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

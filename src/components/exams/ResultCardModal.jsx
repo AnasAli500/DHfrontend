@@ -121,26 +121,56 @@ const ResultCardModal = ({ open, onClose, cardData }) => {
                     <td colSpan="7" className="text-center py-4 text-gray-500 text-xs">No exam records found for this season.</td>
                   </tr>
                 ) : (
-                  subjectExams.map((e, idx) => (
-                    <tr key={e._id || idx} className="border-b border-gray-200">
-                      <td className="border border-gray-300 p-2 text-gray-500 font-mono text-xs">{idx + 1}</td>
-                      <td className="border border-gray-300 p-2 font-medium">{e.subject}</td>
-                      <td className="border border-gray-300 p-2 text-center font-extrabold text-base text-primary-700">{e.marks}</td>
-                      <td className="border border-gray-300 p-2 text-center font-bold">{e.percentage}%</td>
-                      <td className="border border-gray-300 p-2 text-center">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                          e.grade === 'A+' || e.grade === 'A' ? 'bg-green-100 text-green-800' :
-                          e.grade === 'B' ? 'bg-blue-100 text-blue-800' :
-                          e.grade === 'C' ? 'bg-yellow-100 text-yellow-800' :
-                          e.grade === 'D' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
+                  subjectExams.map((e, idx) => {
+                    const obt = e.marks !== undefined ? e.marks : parseFloat(e.marksObtained);
+                    const isBelow50 = obt !== undefined && obt !== null && Number(obt) < 50;
+                    return (
+                      <tr key={e._id || idx} className="border-b border-gray-200">
+                        <td className="border border-gray-300 p-2 text-gray-500 font-mono text-xs">{idx + 1}</td>
+                        <td className="border border-gray-300 p-2 font-medium">
+                          <div className="relative group inline-block">
+                            <span
+                              className={`cursor-pointer transition-colors ${
+                                isBelow50 ? 'text-red-600 font-bold' : 'text-gray-900'
+                              }`}
+                              title={`Subject: ${e.subject}`}
+                            >
+                              {e.subject}
+                            </span>
+                            <div className="pointer-events-none absolute left-0 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                              <div className="bg-gray-900 text-white text-xs font-semibold py-1 px-2.5 rounded shadow-lg">
+                                Subject: {e.subject}
+                              </div>
+                              <div className="w-2 h-2 -mt-1 rotate-45 bg-gray-900"></div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className={`border border-gray-300 p-2 text-center font-extrabold text-base ${
+                          isBelow50 ? 'text-red-600' : 'text-primary-700'
                         }`}>
-                          {e.grade}
-                        </span>
-                      </td>
-                      <td className="border border-gray-300 p-2 text-center text-xs">{e.attendance}</td>
-                      <td className="border border-gray-300 p-2 text-xs text-gray-600">{e.remarks || '-'}</td>
-                    </tr>
-                  ))
+                          {e.marks}
+                        </td>
+                        <td className={`border border-gray-300 p-2 text-center font-bold ${
+                          isBelow50 ? 'text-red-600' : 'text-gray-900'
+                        }`}>
+                          {e.percentage}%
+                        </td>
+                        <td className="border border-gray-300 p-2 text-center">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            isBelow50 ? 'bg-red-100 text-red-600 border border-red-200' :
+                            e.grade === 'A+' || e.grade === 'A' ? 'bg-green-100 text-green-800' :
+                            e.grade === 'B' ? 'bg-blue-100 text-blue-800' :
+                            e.grade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                            e.grade === 'D' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {e.grade}
+                          </span>
+                        </td>
+                        <td className="border border-gray-300 p-2 text-center text-xs">{e.attendance}</td>
+                        <td className="border border-gray-300 p-2 text-xs text-gray-600">{e.remarks || '-'}</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

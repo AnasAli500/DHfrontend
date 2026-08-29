@@ -336,53 +336,80 @@ const StudentExamResults = () => {
 
                   {/* Body */}
                   <tbody>
-                    {rows.map((r) => (
-                      <tr
-                        key={r.idx}
-                        className={`${r.idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-750'} hover:bg-primary-50 dark:hover:bg-primary-950/20 transition-colors`}
-                      >
-                        <td className="px-3 py-2.5 text-center text-gray-500 dark:text-gray-400 font-medium text-xs border border-gray-200 dark:border-gray-700 print:border-gray-400 print:text-black">
-                          {r.idx + 1}
-                        </td>
-                        <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 print:border-gray-400 print:text-black">
-                          {r.subject}
-                        </td>
-                        {allExamTypes.map(t => (
-                          <td key={t} className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
-                            {r.examMap[t] !== undefined ? (
-                              <span className="font-mono font-bold text-base text-gray-900 dark:text-white print:text-black">
-                                {r.examMap[t]}
-                              </span>
-                            ) : (
-                              <span className="text-gray-300 dark:text-gray-600">—</span>
-                            )}
+                    {rows.map((r) => {
+                      const obt = r.marksObtained ?? r.marks;
+                      const isBelow50 = obt !== undefined && obt !== null && Number(obt) < 50;
+                      return (
+                        <tr
+                          key={r.idx}
+                          className={`${r.idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-750'} hover:bg-primary-50 dark:hover:bg-primary-950/20 transition-colors`}
+                        >
+                          <td className="px-3 py-2.5 text-center text-gray-500 dark:text-gray-400 font-medium text-xs border border-gray-200 dark:border-gray-700 print:border-gray-400 print:text-black">
+                            {r.idx + 1}
                           </td>
-                        ))}
-                        {/* Total */}
-                        <td className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
-                          <span className="font-mono font-extrabold text-lg text-primary-700 dark:text-primary-300 print:text-black">
-                            {r.marksObtained}
-                          </span>
-                        </td>
-                        {/* Grade */}
-                        <td className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
-                          <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 print:bg-none print:text-black">
-                            {r.grade}
-                          </span>
-                        </td>
-                        {/* Status */}
-                        <td className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            r.status === 'Pass'
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
-                          } print:bg-none print:text-black`}>
-                            {r.status === 'Pass' ? <CheckCircle2 className="w-3 h-3 print:hidden" /> : <XCircle className="w-3 h-3 print:hidden" />}
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-4 py-2.5 font-semibold border border-gray-200 dark:border-gray-700 print:border-gray-400">
+                            <div className="relative group inline-block">
+                              <span
+                                className={`cursor-pointer transition-colors ${
+                                  isBelow50 ? 'text-red-600 dark:text-red-400 font-bold print:text-red-600' : 'text-gray-900 dark:text-white print:text-black'
+                                }`}
+                                title={`Subject: ${r.subject}`}
+                              >
+                                {r.subject}
+                              </span>
+                              <div className="pointer-events-none absolute left-0 bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap no-print">
+                                <div className="bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-1 px-2.5 rounded shadow-lg border border-gray-700 dark:border-gray-300">
+                                  Subject: {r.subject}
+                                </div>
+                                <div className="w-2 h-2 -mt-1 rotate-45 bg-gray-900 dark:bg-gray-100"></div>
+                              </div>
+                            </div>
+                          </td>
+                          {allExamTypes.map(t => (
+                            <td key={t} className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
+                              {r.examMap[t] !== undefined ? (
+                                <span className={`font-mono font-bold text-base ${
+                                  isBelow50 ? 'text-red-600 dark:text-red-400 print:text-red-600' : 'text-gray-900 dark:text-white print:text-black'
+                                }`}>
+                                  {r.examMap[t]}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300 dark:text-gray-600">—</span>
+                              )}
+                            </td>
+                          ))}
+                          {/* Total */}
+                          <td className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
+                            <span className={`font-mono font-extrabold text-lg ${
+                              isBelow50 ? 'text-red-600 dark:text-red-400 print:text-red-600' : 'text-primary-700 dark:text-primary-300 print:text-black'
+                            }`}>
+                              {r.marksObtained}
+                            </span>
+                          </td>
+                          {/* Grade */}
+                          <td className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${
+                              isBelow50
+                                ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 print:bg-none print:text-red-600'
+                                : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 print:bg-none print:text-black'
+                            }`}>
+                              {r.grade}
+                            </span>
+                          </td>
+                          {/* Status */}
+                          <td className="px-3 py-2.5 text-center border border-gray-200 dark:border-gray-700 print:border-gray-400">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              r.status === 'Pass' || r.status === 'PASS'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                            } print:bg-none print:text-black`}>
+                              {r.status === 'Pass' || r.status === 'PASS' ? <CheckCircle2 className="w-3 h-3 print:hidden" /> : <XCircle className="w-3 h-3 print:hidden" />}
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
 
                   {/* TOTAL Row */}
