@@ -7,11 +7,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_URL || 'https://dhbackend-2.onrender.com',
+        target: process.env.VITE_BACKEND_URL || 'https://dhbackend-production.up.railway.app',
         changeOrigin: true,
       },
       '/uploads': {
-        target: process.env.VITE_BACKEND_URL || 'https://dhbackend-2.onrender.com',
+        target: process.env.VITE_BACKEND_URL || 'https://dhbackend-production.up.railway.app',
         changeOrigin: true,
       },
     },

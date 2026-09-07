@@ -1,4 +1,4 @@
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://dhbackend-2.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://dhbackend-production.up.railway.app';
 const WAKE_TIMEOUT_MS = 90000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

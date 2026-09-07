@@ -3,7 +3,7 @@ export const getAssetUrl = (path) => {
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
     return path;
   }
-  const baseUrl = import.meta.env.VITE_BACKEND_URL || 'https://dhbackend-2.onrender.com';
+  const baseUrl = import.meta.env.VITE_BACKEND_URL || 'https://dhbackend-production.up.railway.app';
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
 };
