@@ -191,18 +191,35 @@ const StudentFormModal = ({ isOpen, onClose, initialData, classes = [], onSubmit
     }
   };
 
-  const filteredClasses = classes.filter((c) => {
-    if (!form.schoolType) return true;
-    const catName = (c.category?.name || c.gradeLevel || '').toLowerCase();
+  // Filter classes based on schoolType if applicable, preserving selected class & falling back to all classes
+  const filteredClasses = React.useMemo(() => {
+    if (!classes || classes.length === 0) return [];
+    if (!form.schoolType) return classes;
+
     const typeLower = form.schoolType.toLowerCase();
-    if (typeLower === 'primary') {
-      return catName.includes('primary') || catName.includes('element') || catName.includes('grade 1') || catName.includes('grade 2') || catName.includes('grade 3') || catName.includes('grade 4') || catName.includes('grade 5') || catName.includes('grade 6') || catName.includes('grade 7') || catName.includes('grade 8');
-    }
-    if (typeLower === 'secondary') {
-      return catName.includes('second') || catName.includes('high') || catName.includes('form') || catName.includes('grade 9') || catName.includes('grade 10') || catName.includes('grade 11') || catName.includes('grade 12');
-    }
-    return true;
-  });
+    const matches = classes.filter((c) => {
+      // Always include currently selected class
+      const currentClassId = typeof form.classId === 'object' ? form.classId?._id : form.classId;
+      if (c._id === currentClassId) return true;
+
+      const catName = (c.category?.name || '').toLowerCase();
+      const catCode = (c.category?.code || '').toLowerCase();
+      const className = (c.className || '').toLowerCase();
+      const gradeLevel = (c.gradeLevel || '').toLowerCase();
+      const combined = `${catName} ${catCode} ${className} ${gradeLevel}`;
+
+      if (typeLower === 'primary') {
+        return combined.includes('primary') || combined.includes('elem') || combined.includes('grade 1') || combined.includes('grade 2') || combined.includes('grade 3') || combined.includes('grade 4') || combined.includes('grade 5') || combined.includes('grade 6') || combined.includes('grade 7') || combined.includes('grade 8') || combined.includes('class 1') || combined.includes('class 2') || combined.includes('class 3') || combined.includes('class 4') || combined.includes('class 5') || combined.includes('class 6') || combined.includes('class 7') || combined.includes('class 8') || combined.includes('p1') || combined.includes('p2') || combined.includes('p3') || combined.includes('p4') || combined.includes('p5') || combined.includes('p6') || combined.includes('p7') || combined.includes('p8');
+      }
+      if (typeLower === 'secondary') {
+        return combined.includes('second') || combined.includes('high') || combined.includes('form') || combined.includes('sec') || combined.includes('grade 9') || combined.includes('grade 10') || combined.includes('grade 11') || combined.includes('grade 12') || combined.includes('form 1') || combined.includes('form 2') || combined.includes('form 3') || combined.includes('form 4') || combined.includes('s1') || combined.includes('s2') || combined.includes('s3') || combined.includes('s4');
+      }
+      return true;
+    });
+
+    // Fallback to all classes if filter returns zero matches so classes are never hidden
+    return matches.length > 0 ? matches : classes;
+  }, [classes, form.schoolType, form.classId]);
 
   return (
     <Modal
