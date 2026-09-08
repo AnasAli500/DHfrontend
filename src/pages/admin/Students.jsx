@@ -20,6 +20,7 @@ const Students = () => {
   const [search, setSearch] = useState('');
   const [filterGender, setFilterGender] = useState('');
   const [filterClassId, setFilterClassId] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -45,9 +46,10 @@ const Students = () => {
       const params = { search, page, limit: 10 };
       if (filterGender) params.gender = filterGender;
       if (filterClassId) params.classId = filterClassId;
+      if (filterStatus) params.status = filterStatus;
       const [s, c] = await Promise.all([
         api.get('/students', { params }),
-        api.get('/classes', { params: { limit: 100 } }),
+        api.get('/classes', { params: { limit: 1000 } }),
       ]);
       setStudents(s.data.students);
       setPages(s.data.pages);
@@ -57,7 +59,7 @@ const Students = () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, [search, page, filterGender, filterClassId]);
+  useEffect(() => { fetchData(); }, [search, page, filterGender, filterClassId, filterStatus]);
 
   const openCreate = () => { setSelectedStudent(null); setModalOpen(true); };
 
@@ -98,10 +100,10 @@ const Students = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm(t('students.deleteStudentConfirm'))) return;
+    if (!confirm('Are you sure you want to delete or deactivate this student?')) return;
     try {
-      await api.delete(`/students/${id}`);
-      toast.success(t('students.studentDeleted'));
+      const res = await api.delete(`/students/${id}`);
+      toast.success(res.data?.message || t('students.studentDeleted'));
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Delete failed');
@@ -596,9 +598,18 @@ const Students = () => {
             <option key={c._id} value={c._id}>{c.className} - {c.gradeLevel} ({c.academicYear})</option>
           ))}
         </select>
-        {(filterGender || filterClassId) && (
+        <select
+          className="input-field !py-1.5 !text-sm !w-auto"
+          value={filterStatus}
+          onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+        >
+          <option value="">All Statuses</option>
+          <option value="Active">Active Only</option>
+          <option value="Inactive">Inactive Only</option>
+        </select>
+        {(filterGender || filterClassId || filterStatus) && (
           <button
-            onClick={() => { setFilterGender(''); setFilterClassId(''); setPage(1); }}
+            onClick={() => { setFilterGender(''); setFilterClassId(''); setFilterStatus(''); setPage(1); }}
             className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 transition"
           >
             ✕ {t('common.clearFilters')}
@@ -615,6 +626,7 @@ const Students = () => {
                 <th className="text-left py-3 px-4">{t('common.name')}</th>
                 <th className="text-left py-3 px-4">{t('common.gender')}</th>
                 <th className="text-left py-3 px-4">{t('students.currentClass')}</th>
+                <th className="text-left py-3 px-4">Status</th>
                 <th className="text-left py-3 px-4">{t('students.account')}</th>
                 <th className="text-right py-3 px-4">{t('common.actions')}</th>
               </tr>
@@ -631,6 +643,15 @@ const Students = () => {
                         {s.classId.className} - {s.classId.gradeLevel}
                       </span>
                     ) : '-'}
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      s.status === 'Inactive'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    }`}>
+                      {s.status || 'Active'}
+                    </span>
                   </td>
                   <td className="py-3 px-4">{s.hasAccount ? <span className="text-green-500 text-xs">{t('common.active')}</span> : <span className="text-gray-400 text-xs">{t('common.none')}</span>}</td>
                   <td className="py-3 px-4 text-right flex justify-end gap-1">

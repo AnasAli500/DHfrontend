@@ -86,6 +86,7 @@ const getInitialFormState = (initialData) => {
       transferStatus: initialData.transferStatus || 'In Progress',
       monthlyFee: initialData.monthlyFee !== undefined ? initialData.monthlyFee : 0,
       admissionFee: initialData.admissionFee !== undefined ? initialData.admissionFee : 0,
+      status: initialData.status || 'Active',
     };
   }
 
@@ -114,6 +115,7 @@ const getInitialFormState = (initialData) => {
     transferStatus: 'In Progress',
     monthlyFee: 0,
     admissionFee: 0,
+    status: 'Active',
   };
 };
 
@@ -393,6 +395,21 @@ const StudentFormModal = ({ isOpen, onClose, initialData, classes = [], onSubmit
                 {DEFAULT_NATIONALITIES.map((nat) => (
                   <option key={nat} value={nat}>{nat}</option>
                 ))}
+              </select>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Status
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) => handleChange('status', e.target.value)}
+                className="input-field"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive (No Active)</option>
               </select>
             </div>
           </div>
