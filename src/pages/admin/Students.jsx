@@ -6,11 +6,10 @@ import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import StudentImportModal from '../../components/students/StudentImportModal';
+import StudentFormModal from '../../components/students/StudentFormModal';
 import { exportToExcel } from '../../utils/excelUtils';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-
-const emptyForm = { name: '', gender: 'Male', dateOfBirth: '', motherName: '', phone: '', address: '', parentPhone: '', classId: '' };
 
 const Students = () => {
   const { t } = useTranslation();
@@ -25,8 +24,7 @@ const Students = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   // Student Profile Modal State
   const [profileData, setProfileData] = useState(null);
@@ -61,7 +59,7 @@ const Students = () => {
 
   useEffect(() => { fetchData(); }, [search, page, filterGender, filterClassId]);
 
-  const openCreate = () => { setEditId(null); setForm(emptyForm); setModalOpen(true); };
+  const openCreate = () => { setSelectedStudent(null); setModalOpen(true); };
 
   const openView = async (s) => {
     setProfileLoading(true);
@@ -84,32 +82,19 @@ const Students = () => {
   };
 
   const openEdit = (s) => {
-    setEditId(s._id);
-    setForm({
-      name: s.name, gender: s.gender,
-      dateOfBirth: s.dateOfBirth?.split('T')[0] || '',
-      motherName: s.motherName, phone: s.phone || '',
-      address: s.address || '', parentPhone: s.parentPhone || '',
-      classId: s.classId?._id || s.classId || '',
-    });
+    setSelectedStudent(s);
     setModalOpen(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editId) {
-        await api.put(`/students/${editId}`, form);
-        toast.success(t('students.studentUpdated'));
-      } else {
-        await api.post('/students', form);
-        toast.success(t('students.studentCreated'));
-      }
-      setModalOpen(false);
-      fetchData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Operation failed');
+  const handleSaveStudent = async (formData) => {
+    if (selectedStudent?._id) {
+      await api.put(`/students/${selectedStudent._id}`, formData);
+      toast.success(t('students.studentUpdated'));
+    } else {
+      await api.post('/students', formData);
+      toast.success(t('students.studentCreated'));
     }
+    fetchData();
   };
 
   const handleDelete = async (id) => {
@@ -225,7 +210,7 @@ const Students = () => {
         {/* Tab Content Area */}
         <div className="pt-2">
           {activeTab === 'Overview' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
               <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                 <p className="text-gray-500 text-xs mb-1">{t('students.studentId')}</p>
                 <p className="font-mono text-primary-600 font-semibold">{student.studentId}</p>
@@ -233,6 +218,10 @@ const Students = () => {
               <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                 <p className="text-gray-500 text-xs mb-1">{t('students.fullName')}</p>
                 <p className="font-medium">{student.name}</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-gray-500 text-xs mb-1">Registered Date</p>
+                <p>{student.registeredDate ? new Date(student.registeredDate).toLocaleDateString() : '-'}</p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                 <p className="text-gray-500 text-xs mb-1">{t('common.gender')}</p>
@@ -243,6 +232,14 @@ const Students = () => {
                 <p>{student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : '-'}</p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-gray-500 text-xs mb-1">Birthplace</p>
+                <p>{student.birthplace || '-'}</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-gray-500 text-xs mb-1">Nationality</p>
+                <p>{student.nationality || '-'}</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                 <p className="text-gray-500 text-xs mb-1">{t('students.motherName')}</p>
                 <p>{student.motherName || '-'}</p>
               </div>
@@ -251,16 +248,28 @@ const Students = () => {
                 <p>{student.phone || '-'}</p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <p className="text-gray-500 text-xs mb-1">{t('students.parentPhone')}</p>
-                <p>{student.parentPhone || '-'}</p>
+                <p className="text-gray-500 text-xs mb-1">State / Region</p>
+                <p>{[student.state, student.region].filter(Boolean).join(' / ') || '-'}</p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <p className="text-gray-500 text-xs mb-1">{t('students.accountStatus')}</p>
-                <p>{student.hasAccount ? <span className="text-green-600 font-medium">{t('students.activeUserAccount')}</span> : <span className="text-gray-400">{t('students.noPortalAccount')}</span>}</p>
+                <p className="text-gray-500 text-xs mb-1">District / Village</p>
+                <p>{[student.district, student.village].filter(Boolean).join(' / ') || '-'}</p>
               </div>
-              <div className="sm:col-span-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <p className="text-gray-500 text-xs mb-1">{t('common.address')}</p>
-                <p>{student.address || '-'}</p>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-gray-500 text-xs mb-1">Guardian Name & Phone</p>
+                <p>{student.guardianName || student.parentPhone ? `${student.guardianName || '-'} (${student.guardianPhone || student.parentPhone || '-'})` : '-'}</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-gray-500 text-xs mb-1">Orphan / Disability / Refugee</p>
+                <p>Orphan: <span className="font-semibold">{student.orphanStatus || 'No'}</span> | Disability: <span className="font-semibold">{student.disabilityStatus || 'No'}</span> | Refugee: <span className="font-semibold">{student.refugeeStatus || 'No'}</span></p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-gray-500 text-xs mb-1">School Type & Name</p>
+                <p>{student.schoolType || student.schoolName ? `${student.schoolType || '-'} - ${student.schoolName || '-'}` : '-'}</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-gray-500 text-xs mb-1">Fees (Monthly / Admission)</p>
+                <p className="font-semibold text-emerald-600">${student.monthlyFee || 0} / ${student.admissionFee || 0}</p>
               </div>
             </div>
           )}
@@ -636,28 +645,13 @@ const Students = () => {
       />
 
       {/* CREATE / EDIT STUDENT MODAL */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editId ? t('students.editStudent') : t('students.addStudent')} size="lg">
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input className="input-field" placeholder={t('students.fullName')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <select className="input-field" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
-            <option value="Male">{t('common.male')}</option>
-            <option value="Female">{t('common.female')}</option>
-          </select>
-          <input type="date" className="input-field" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} required />
-          <input className="input-field" placeholder={t('students.motherName')} value={form.motherName} onChange={(e) => setForm({ ...form, motherName: e.target.value })} required />
-          <input className="input-field" placeholder={t('common.phone')} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <input className="input-field" placeholder={t('students.parentPhone')} value={form.parentPhone} onChange={(e) => setForm({ ...form, parentPhone: e.target.value })} />
-          <select className="input-field sm:col-span-2" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>
-            <option value="">{t('students.selectInitialClass')}</option>
-            {classes.map((c) => <option key={c._id} value={c._id}>{c.className} - {c.gradeLevel} ({c.academicYear})</option>)}
-          </select>
-          <textarea className="input-field sm:col-span-2" placeholder={t('common.address')} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} rows={2} />
-          <div className="sm:col-span-2 flex gap-3 justify-end">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">{t('common.cancel')}</button>
-            <button type="submit" className="btn-primary">{editId ? t('common.update') : t('common.create')}</button>
-          </div>
-        </form>
-      </Modal>
+      <StudentFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        initialData={selectedStudent}
+        classes={classes}
+        onSubmit={handleSaveStudent}
+      />
     </div>
   );
 };
