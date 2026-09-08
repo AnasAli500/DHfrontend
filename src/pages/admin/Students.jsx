@@ -17,6 +17,8 @@ const Students = () => {
   const [classes, setClasses] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(100);
   const [search, setSearch] = useState('');
   const [filterGender, setFilterGender] = useState('');
   const [filterClassId, setFilterClassId] = useState('');
@@ -43,7 +45,7 @@ const Students = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const params = { search, page, limit: 10 };
+      const params = { search, page, limit };
       if (filterGender) params.gender = filterGender;
       if (filterClassId) params.classId = filterClassId;
       if (filterStatus) params.status = filterStatus;
@@ -51,15 +53,16 @@ const Students = () => {
         api.get('/students', { params }),
         api.get('/classes', { params: { limit: 1000 } }),
       ]);
-      setStudents(s.data.students);
-      setPages(s.data.pages);
-      setClasses(c.data.classes);
+      setStudents(s.data.students || []);
+      setTotal(s.data.total || 0);
+      setPages(s.data.pages || 1);
+      setClasses(c.data.classes || []);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, [search, page, filterGender, filterClassId, filterStatus]);
+  useEffect(() => { fetchData(); }, [search, page, filterGender, filterClassId, filterStatus, limit]);
 
   const openCreate = () => { setSelectedStudent(null); setModalOpen(true); };
 
@@ -607,9 +610,21 @@ const Students = () => {
           <option value="Active">Active Only</option>
           <option value="Inactive">Inactive Only</option>
         </select>
-        {(filterGender || filterClassId || filterStatus) && (
+        <select
+          className="input-field !py-1.5 !text-sm !w-auto"
+          value={limit}
+          onChange={(e) => { setLimit(e.target.value); setPage(1); }}
+        >
+          <option value={100}>100</option>
+          <option value={200}>200</option>
+          <option value={300}>300</option>
+          <option value={400}>400</option>
+          <option value={500}>500</option>
+          <option value="All">All</option>
+        </select>
+        {(filterGender || filterClassId || filterStatus || limit !== 100) && (
           <button
-            onClick={() => { setFilterGender(''); setFilterClassId(''); setFilterStatus(''); setPage(1); }}
+            onClick={() => { setFilterGender(''); setFilterClassId(''); setFilterStatus(''); setLimit(100); setPage(1); }}
             className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 transition"
           >
             ✕ {t('common.clearFilters')}
@@ -663,9 +678,24 @@ const Students = () => {
                   </td>
                 </tr>
               ))}
+              {students.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-6 text-gray-500">
+                    No students match your filter criteria.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-          <Pagination page={page} pages={pages} onPageChange={setPage} />
+          <Pagination
+            page={page}
+            pages={pages}
+            onPageChange={setPage}
+            total={total}
+            limit={limit}
+            showingFrom={total > 0 ? (page - 1) * (limit === 'All' ? total : Number(limit)) + 1 : 0}
+            showingTo={total > 0 ? (limit === 'All' ? total : Math.min(page * Number(limit), total)) : 0}
+          />
         </div>
       )}
 
