@@ -65,6 +65,27 @@ const StudentImportModal = ({ isOpen, onClose, classes = [], onSuccess }) => {
         const parent = (row.Parent || row.parent || row['Parent Name'] || row.motherName || '').toString().trim();
         const parentPhone = (row['Parent Phone'] || row.parentPhone || row.ParentPhone || '').toString().trim();
 
+        const registeredDate = row['Registered Date'] || row.registeredDate || null;
+        const motherName = (row['Mother Name'] || row.motherName || row.Parent || row.parent || '').toString().trim();
+        const telephone = (row.Telephone || row.phone || row.Phone || '').toString().trim();
+        const dateOfBirth = row.Birthday || row.birthday || row.dateOfBirth || row.DOB || null;
+        const birthplace = (row.Birthplace || row.birthplace || '').toString().trim();
+        const nationality = (row.Nationality || row.nationality || '').toString().trim();
+        const state = (row['Student State'] || row.state || row.State || '').toString().trim();
+        const region = (row['Student Region'] || row.region || row.Region || '').toString().trim();
+        const district = (row['Student District'] || row.district || row.District || '').toString().trim();
+        const village = (row['Student Village'] || row.village || row.Village || '').toString().trim();
+        const orphanStatus = (row['Orphan Status'] || row.orphanStatus || '').toString().trim();
+        const disabilityStatus = (row['Disability Status'] || row.disabilityStatus || '').toString().trim();
+        const guardianName = (row['Guardian Name'] || row.guardianName || '').toString().trim();
+        const guardianPhone = (row['Guardian Telephone'] || row.guardianPhone || row['Parent Phone'] || row.parentPhone || '').toString().trim();
+        const refugeeStatus = (row['Refugee Status'] || row.refugeeStatus || '').toString().trim();
+        const schoolType = (row['School Type'] || row.schoolType || row.Type || '').toString().trim();
+        const schoolName = (row['School Name'] || row.schoolName || '').toString().trim();
+        const transferStatus = (row['Transfer Status'] || row.transferStatus || '').toString().trim();
+        const monthlyFee = row['Monthly Fee'] || row.monthlyFee || 0;
+        const admissionFee = row['Admission Fee'] || row.admissionFee || 0;
+
         const formattedGender = rawGender ? (rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()) : '';
         let error = null;
 
@@ -77,7 +98,7 @@ const StudentImportModal = ({ isOpen, onClose, classes = [], onSuccess }) => {
         } else if (!classMap.has(className.toLowerCase())) {
           error = `Class "${className}" not found`;
         } else {
-          const dedupeKey = `${name.toLowerCase()}_${className.toLowerCase()}_${phone}`;
+          const dedupeKey = `${name.toLowerCase()}_${className.toLowerCase()}_${telephone}`;
           if (seenRows.has(dedupeKey)) {
             error = 'Duplicate student record in file';
           } else {
@@ -95,9 +116,26 @@ const StudentImportModal = ({ isOpen, onClose, classes = [], onSuccess }) => {
           gender: formattedGender || rawGender,
           className,
           address,
-          phone,
-          parent,
-          parentPhone,
+          phone: telephone,
+          motherName,
+          registeredDate,
+          dateOfBirth,
+          birthplace,
+          nationality,
+          state,
+          region,
+          district,
+          village,
+          orphanStatus,
+          disabilityStatus,
+          guardianName,
+          guardianPhone,
+          refugeeStatus,
+          schoolType,
+          schoolName,
+          transferStatus,
+          monthlyFee,
+          admissionFee,
           isValid,
           error,
         });
@@ -130,8 +168,25 @@ const StudentImportModal = ({ isOpen, onClose, classes = [], onSuccess }) => {
         class: r.className,
         address: r.address,
         phone: r.phone,
-        parent: r.parent,
-        parentPhone: r.parentPhone,
+        motherName: r.motherName,
+        registeredDate: r.registeredDate,
+        dateOfBirth: r.dateOfBirth,
+        birthplace: r.birthplace,
+        nationality: r.nationality,
+        state: r.state,
+        region: r.region,
+        district: r.district,
+        village: r.village,
+        orphanStatus: r.orphanStatus,
+        disabilityStatus: r.disabilityStatus,
+        guardianName: r.guardianName,
+        guardianPhone: r.guardianPhone,
+        refugeeStatus: r.refugeeStatus,
+        schoolType: r.schoolType,
+        schoolName: r.schoolName,
+        transferStatus: r.transferStatus,
+        monthlyFee: r.monthlyFee,
+        admissionFee: r.admissionFee,
       }));
 
       const { data } = await api.post('/students/import', { students: payload });
