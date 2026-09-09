@@ -29,6 +29,11 @@ const Students = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+  // Academic Year Switcher
+  const [academicYears, setAcademicYears] = useState([]);
+  const [activeYear, setActiveYear] = useState(null);
+  const [yearsLoading, setYearsLoading] = useState(true);
+
   // Student Profile Modal State
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -42,6 +47,27 @@ const Students = () => {
   const [attendanceYearFilter, setAttendanceYearFilter] = useState('ALL');
   const [attendanceClassFilter, setAttendanceClassFilter] = useState('ALL');
 
+  // Fetch distinct academic years and auto-select the latest
+  useEffect(() => {
+    const loadYears = async () => {
+      setYearsLoading(true);
+      try {
+        const { data } = await api.get('/students/academic-years');
+        const sorted = (data.years || []).sort((a, b) => b.localeCompare(a));
+        setAcademicYears(sorted);
+        if (sorted.length > 0) {
+          setActiveYear(sorted[0]); // auto-select latest
+        }
+      } catch (err) {
+        // If endpoint fails, continue without year filter
+        setActiveYear(null);
+      } finally {
+        setYearsLoading(false);
+      }
+    };
+    loadYears();
+  }, []);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -49,6 +75,7 @@ const Students = () => {
       if (filterGender) params.gender = filterGender;
       if (filterClassId) params.classId = filterClassId;
       if (filterStatus) params.status = filterStatus;
+      if (activeYear) params.academicYear = activeYear;
       const [s, c] = await Promise.all([
         api.get('/students', { params }),
         api.get('/classes', { params: { limit: 1000 } }),
@@ -62,7 +89,12 @@ const Students = () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, [search, page, filterGender, filterClassId, filterStatus, limit]);
+  // Only fetch students after the academic years have been loaded (so activeYear is set)
+  useEffect(() => {
+    if (!yearsLoading) {
+      fetchData();
+    }
+  }, [search, page, filterGender, filterClassId, filterStatus, limit, activeYear, yearsLoading]);
 
   const openCreate = () => { setSelectedStudent(null); setModalOpen(true); };
 
@@ -579,6 +611,29 @@ const Students = () => {
           <button onClick={openCreate} className="btn-primary flex items-center gap-2"><Plus className="w-4 h-4" /> {t('students.addStudent')}</button>
         </div>
       </div>
+
+      {/* Academic Year Switcher */}
+      {!yearsLoading && academicYears.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mr-1">{t('students.academicYear')}:</span>
+          {academicYears.map((year) => (
+            <button
+              key={year}
+              onClick={() => { setActiveYear(year); setPage(1); }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                activeYear === year
+                  ? 'bg-primary-600 text-white shadow-sm shadow-primary-200 dark:shadow-primary-900/40'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              {year}
+              {activeYear === year && (
+                <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-white/80 align-middle" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3 items-center">
         <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('students.searchStudents')} />
