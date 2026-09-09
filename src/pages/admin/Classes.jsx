@@ -21,7 +21,12 @@ const Classes = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ className: '', gradeLevel: '', category: '', academicYear: '2026', classTeacher: '', status: 'Active' });
+  const [form, setForm] = useState({ className: '', gradeLevel: '', category: '', academicYear: '2026-2027', classTeacher: '', status: 'Active' });
+
+  // Academic Year Switcher
+  const [academicYears, setAcademicYears] = useState([]);
+  const [activeYear, setActiveYear] = useState(null);
+  const [yearsLoading, setYearsLoading] = useState(true);
 
   // Class View Modal States
   const [viewClassModal, setViewClassModal] = useState(false);
@@ -31,24 +36,52 @@ const Classes = () => {
   const [classStudentsData, setClassStudentsData] = useState(null);
   const [studentsLoading, setStudentsLoading] = useState(false);
 
+  // Fetch distinct academic years and auto-select the latest
+  useEffect(() => {
+    const loadYears = async () => {
+      setYearsLoading(true);
+      try {
+        const { data } = await api.get('/students/academic-years');
+        const sorted = (data.years || []).sort((a, b) => b.localeCompare(a));
+        setAcademicYears(sorted);
+        if (sorted.length > 0) {
+          setActiveYear(sorted[0]);
+        } else {
+          setActiveYear(null);
+        }
+      } catch (err) {
+        setActiveYear(null);
+      } finally {
+        setYearsLoading(false);
+      }
+    };
+    loadYears();
+  }, []);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [c, t, categoryResponse] = await Promise.all([
-        api.get('/classes', { params: { search, page, limit: 10 } }),
+      const params = { search, page, limit: 10 };
+      if (activeYear) params.academicYear = activeYear;
+      const [c, teachersRes, categoryResponse] = await Promise.all([
+        api.get('/classes', { params }),
         api.get('/teachers', { params: { limit: 100 } }),
         api.get('/categories'),
       ]);
       setClasses(c.data.classes);
       setPages(c.data.pages);
-      setTeachers(t.data.teachers);
+      setTeachers(teachersRes.data.teachers);
       setCategories(categoryResponse.data.categories);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, [search, page]);
+  useEffect(() => {
+    if (!yearsLoading) {
+      fetchData();
+    }
+  }, [search, page, activeYear, yearsLoading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,10 +148,33 @@ const Classes = () => {
           <h1 className="text-2xl font-bold">{t('classes.title')}</h1>
           <p className="text-sm text-gray-500">Manage active and historical completed classes.</p>
         </div>
-        <button onClick={() => { setEditId(null); setForm({ className: '', gradeLevel: '', category: '', academicYear: '2026', classTeacher: '', status: 'Active' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { setEditId(null); setForm({ className: '', gradeLevel: '', category: '', academicYear: activeYear || '2026-2027', classTeacher: '', status: 'Active' }); setModalOpen(true); }} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> {t('classes.addClass')}
         </button>
       </div>
+
+      {/* Academic Year Switcher */}
+      {!yearsLoading && academicYears.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mr-1">{t('classes.academicYear')}:</span>
+          {academicYears.map((year) => (
+            <button
+              key={year}
+              onClick={() => { setActiveYear(year); setPage(1); }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                activeYear === year
+                  ? 'bg-primary-600 text-white shadow-sm shadow-primary-200 dark:shadow-primary-900/40'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              {year}
+              {activeYear === year && (
+                <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-white/80 align-middle" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('classes.searchClasses')} />
 
