@@ -14,7 +14,8 @@ import {
   Filter,
   ArrowLeft,
   ChevronDown,
-  Info
+  Info,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -91,6 +92,10 @@ const AttendancePage = () => {
   // View Mode: 'list' (Main Table Page) vs 'record' (New Page for Recording Attendance)
   const [view, setView] = useState('list');
 
+  // Academic Year State
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+
   // Filter States
   const [datePreset, setDatePreset] = useState('last5'); // 'last5' | 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'custom'
   const [customDate, setCustomDate] = useState('');
@@ -108,6 +113,7 @@ const AttendancePage = () => {
 
   // Record Attendance Page State
   const [recordForm, setRecordForm] = useState({
+    academicYear: '',
     classId: '',
     teacherId: '',
     date: todayStr,
@@ -146,13 +152,46 @@ const AttendancePage = () => {
     return student.parentPhone || student.guardianPhone || student.phone || '-';
   };
 
-  // Fetch Available Classes
+  // Fetch Academic Years
+  useEffect(() => {
+    const fetchAcademicYears = async () => {
+      try {
+        const { data } = await api.get('/students/academic-years');
+        const sorted = (data.years || []).sort((a, b) => b.localeCompare(a));
+        setAcademicYears(sorted);
+        if (sorted.length > 0) {
+          setSelectedAcademicYear(sorted[0]);
+          setRecordForm((prev) => ({ ...prev, academicYear: sorted[0] }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic years', err);
+      }
+    };
+    fetchAcademicYears();
+  }, []);
+
+  // Fetch Available Classes (filtered by selected Academic Year)
   const fetchClasses = useCallback(async () => {
     try {
-      const { data } = await api.get('/classes', { params: { limit: 100 } });
+      const params = { limit: 100 };
+      if (selectedAcademicYear) params.academicYear = selectedAcademicYear;
+      const { data } = await api.get('/classes', { params });
       setClasses(data.classes || []);
     } catch (err) {
       console.error('Failed to fetch classes', err);
+    }
+  }, [selectedAcademicYear]);
+
+  // Fetch Classes for Record Form based on recordForm.academicYear
+  const fetchRecordFormClasses = useCallback(async (year) => {
+    try {
+      const params = { limit: 100 };
+      if (year) params.academicYear = year;
+      const { data } = await api.get('/classes', { params });
+      return data.classes || [];
+    } catch (err) {
+      console.error('Failed to fetch record form classes', err);
+      return [];
     }
   }, []);
 
@@ -265,13 +304,30 @@ const AttendancePage = () => {
 
   // Switch to Record Attendance Page
   const openRecordPage = () => {
+    const yearToUse = selectedAcademicYear || (academicYears[0] || '2026-2027');
     setRecordForm({
+      academicYear: yearToUse,
       classId: filterClass || (classes[0]?._id || ''),
       teacherId: '',
       date: customDate || todayStr,
     });
     setSheetStudents([]);
     setView('record');
+  };
+
+  // Handle Academic Year Change in Record Form
+  const handleRecordAcademicYearChange = async (newYear) => {
+    setRecordForm((prev) => ({
+      ...prev,
+      academicYear: newYear,
+      classId: '',
+      teacherId: '',
+    }));
+    setSheetStudents([]);
+    const fetchedClasses = await fetchRecordFormClasses(newYear);
+    if (fetchedClasses.length > 0) {
+      setRecordForm((prev) => ({ ...prev, classId: fetchedClasses[0]._id }));
+    }
   };
 
   // Quick Action: Mark All Students
@@ -381,7 +437,7 @@ const AttendancePage = () => {
                 Record Class Attendance
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Select class, teacher, date and mark attendance for each student.
+                Select academic year, class, teacher, date and mark attendance for each student.
               </p>
             </div>
           </div>
@@ -404,26 +460,36 @@ const AttendancePage = () => {
           </div>
         </div>
 
-        {/* STEP 1: CLASS, TEACHER & DATE SELECTION CARD */}
+        {/* STEP 1: ACADEMIC YEAR, CLASS, TEACHER & DATE SELECTION CARD */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-sm space-y-4">
-          <h3 className="text-base font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+          <h3 className="text-base font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-primary-600" />
             1. Attendance Details
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* ACADEMIC YEAR */}
             <div>
               <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
-                Date <span className="text-red-500">*</span>
+                Academic Year <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
-                value={recordForm.date}
-                onChange={(e) =>
-                  setRecordForm((prev) => ({ ...prev, date: e.target.value }))
-                }
-                className="input-field text-sm py-2.5"
-              />
+              <select
+                value={recordForm.academicYear}
+                onChange={(e) => handleRecordAcademicYearChange(e.target.value)}
+                className="input-field text-sm py-2.5 font-semibold text-primary-600 dark:text-primary-400"
+              >
+                {academicYears.length > 0 ? (
+                  academicYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))
+                ) : (
+                  <option value="2026-2027">2026-2027</option>
+                )}
+              </select>
             </div>
 
+            {/* CLASS */}
             <div>
               <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
                 Class <span className="text-red-500">*</span>
@@ -448,6 +514,7 @@ const AttendancePage = () => {
               </select>
             </div>
 
+            {/* TEACHER */}
             <div>
               <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
                 Teacher <span className="text-red-500">*</span>
@@ -468,12 +535,27 @@ const AttendancePage = () => {
                 ))}
               </select>
             </div>
+
+            {/* DATE */}
+            <div>
+              <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
+                Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={recordForm.date}
+                onChange={(e) =>
+                  setRecordForm((prev) => ({ ...prev, date: e.target.value }))
+                }
+                className="input-field text-sm py-2.5"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-3 p-4 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/50 rounded-xl text-blue-700 dark:text-blue-300 text-sm">
             <Info className="w-5 h-5 shrink-0" />
             <span>
-              Select the Class, Teacher, and Date to load the active student list for attendance recording.
+              Select Academic Year, Class, Teacher, and Date to load active students for attendance.
             </span>
           </div>
         </div>
@@ -646,7 +728,7 @@ const AttendancePage = () => {
 
       {/* 2. FILTERS CONTROL BAR */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-sm space-y-4">
-        {/* TOP ROW FILTERS: Date Presets, Specific Date Picker, Class Select */}
+        {/* TOP ROW FILTERS: Date Presets, Specific Date Picker, Academic Year & Class Select */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-700/60 pb-4">
           {/* 5 DATE PRESET BUTTONS */}
           <div className="flex flex-wrap items-center gap-2">
@@ -681,8 +763,30 @@ const AttendancePage = () => {
             })}
           </div>
 
-          {/* SPECIFIC DATE PICKER & CLASS DROPDOWN */}
+          {/* ACADEMIC YEAR, SPECIFIC DATE PICKER & CLASS DROPDOWN */}
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* ACADEMIC YEAR SELECTOR */}
+            {academicYears.length > 0 && (
+              <div className="relative flex-1 sm:flex-initial min-w-[130px]">
+                <select
+                  value={selectedAcademicYear}
+                  onChange={(e) => {
+                    setSelectedAcademicYear(e.target.value);
+                    setFilterClass('');
+                    setPage(1);
+                  }}
+                  className="w-full appearance-none pl-3 pr-8 py-2 text-xs font-semibold rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 focus:ring-2 focus:ring-primary-500 outline-none transition cursor-pointer"
+                >
+                  {academicYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-primary-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            )}
+
             {/* SPECIFIC DATE PICKER */}
             <div className="relative flex-1 sm:flex-initial">
               <input
@@ -710,7 +814,7 @@ const AttendancePage = () => {
             </div>
 
             {/* CLASS FILTER DROPDOWN */}
-            <div className="relative flex-1 sm:flex-initial min-w-[160px]">
+            <div className="relative flex-1 sm:flex-initial min-w-[150px]">
               <select
                 value={filterClass}
                 onChange={(e) => {
