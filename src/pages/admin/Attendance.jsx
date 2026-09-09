@@ -12,10 +12,9 @@ import {
   Trash2,
   AlertCircle,
   Filter,
-  Check,
+  ArrowLeft,
   ChevronDown,
-  Phone,
-  UserCheck
+  Info
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -89,13 +88,16 @@ const AttendancePage = () => {
   const isAdmin = user?.role === 'admin';
   const todayStr = useMemo(() => formatDateToYYYYMMDD(new Date()), []);
 
+  // View Mode: 'list' (Main Table Page) vs 'record' (New Page for Recording Attendance)
+  const [view, setView] = useState('list');
+
   // Filter States
   const [datePreset, setDatePreset] = useState('last5'); // 'last5' | 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'custom'
   const [customDate, setCustomDate] = useState('');
   const [filterClass, setFilterClass] = useState(initialClassId);
   const [filterStatus, setFilterStatus] = useState('All'); // 'All' | 'Present' | 'Absent' | 'Late'
 
-  // Data & Modal States
+  // Data & Pagination States
   const [classes, setClasses] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -104,8 +106,7 @@ const AttendancePage = () => {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
 
-  // Record Attendance Modal State
-  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  // Record Attendance Page State
   const [recordForm, setRecordForm] = useState({
     classId: '',
     teacherId: '',
@@ -126,7 +127,7 @@ const AttendancePage = () => {
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Status Style Helper
+  // Status Badge Helper
   const getBadgeStyle = (status) => {
     switch (status) {
       case 'Present':
@@ -155,7 +156,7 @@ const AttendancePage = () => {
     }
   }, []);
 
-  // Fetch All Students (for edit dropdown reference)
+  // Fetch All Students
   const fetchStudents = useCallback(async () => {
     try {
       const { data } = await api.get('/students', { params: { limit: 500 } });
@@ -165,13 +166,12 @@ const AttendancePage = () => {
     }
   }, []);
 
-  // Fetch Attendance Records
+  // Fetch Attendance List
   const fetchAttendance = useCallback(async () => {
     setLoading(true);
     try {
       const params = { page, limit: 100 };
-      
-      // Handle Date Filters
+
       if (datePreset === 'custom' && customDate) {
         params.date = customDate;
       } else if (datePreset !== 'custom') {
@@ -237,22 +237,24 @@ const AttendancePage = () => {
   }, [fetchClasses, fetchStudents]);
 
   useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]);
+    if (view === 'list') {
+      fetchAttendance();
+    }
+  }, [view, fetchAttendance]);
 
   useEffect(() => {
-    if (recordModalOpen && recordForm.classId) {
+    if (view === 'record' && recordForm.classId) {
       fetchTeachersForClass(recordForm.classId);
     }
-  }, [recordModalOpen, recordForm.classId, fetchTeachersForClass]);
+  }, [view, recordForm.classId, fetchTeachersForClass]);
 
   useEffect(() => {
-    if (recordModalOpen && recordForm.classId && recordForm.teacherId && recordForm.date) {
+    if (view === 'record' && recordForm.classId && recordForm.teacherId && recordForm.date) {
       fetchSheet();
     }
-  }, [recordModalOpen, recordForm.classId, recordForm.teacherId, recordForm.date, fetchSheet]);
+  }, [view, recordForm.classId, recordForm.teacherId, recordForm.date, fetchSheet]);
 
-  // Summary Card Calculations (dynamically calculated based on current attendance dataset)
+  // Summary Calculations
   const summary = useMemo(() => {
     const total = attendance.length;
     const present = attendance.filter((a) => a.status === 'Present').length;
@@ -261,18 +263,18 @@ const AttendancePage = () => {
     return { total, present, absent, late };
   }, [attendance]);
 
-  // Open Record Attendance Modal
-  const openRecordModal = () => {
+  // Switch to Record Attendance Page
+  const openRecordPage = () => {
     setRecordForm({
       classId: filterClass || (classes[0]?._id || ''),
       teacherId: '',
       date: customDate || todayStr,
     });
     setSheetStudents([]);
-    setRecordModalOpen(true);
+    setView('record');
   };
 
-  // Quick Action: Mark All
+  // Quick Action: Mark All Students
   const handleMarkAll = (status) => {
     setSheetStudents((prev) => prev.map((s) => ({ ...s, status })));
   };
@@ -304,8 +306,8 @@ const AttendancePage = () => {
         date,
         records: sheetStudents.map((s) => ({ studentId: s._id, status: s.status })),
       });
-      toast.success('Attendance recorded successfully');
-      setRecordModalOpen(false);
+      toast.success('Attendance saved successfully!');
+      setView('list');
       fetchAttendance();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save attendance');
@@ -314,7 +316,7 @@ const AttendancePage = () => {
     }
   };
 
-  // Open Edit Modal
+  // Edit Modal Actions
   const openEditModal = (rec) => {
     setEditModal({
       open: true,
@@ -326,7 +328,6 @@ const AttendancePage = () => {
     });
   };
 
-  // Save Edit Attendance
   const handleSaveEdit = async () => {
     if (!editModal.record) return;
     setSavingEdit(true);
@@ -347,7 +348,7 @@ const AttendancePage = () => {
     }
   };
 
-  // Delete Record
+  // Delete Record Action
   const handleDeleteRecord = async (id) => {
     if (!confirm('Are you sure you want to delete this attendance record?')) return;
     try {
@@ -359,6 +360,269 @@ const AttendancePage = () => {
     }
   };
 
+  /* ========================================================================
+     PAGE VIEW 2: DEDICATED RECORD ATTENDANCE NEW PAGE
+     ======================================================================== */
+  if (view === 'record') {
+    return (
+      <div className="space-y-6 pb-12">
+        {/* HEADER BAR */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setView('list')}
+              className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl transition"
+              title="Back to Attendance List"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight uppercase">
+                Record Class Attendance
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                Select class, teacher, date and mark attendance for each student.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setView('list')}
+              className="btn-secondary px-5 py-2.5 rounded-xl font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveBulkAttendance}
+              disabled={savingRecord || !sheetStudents.length}
+              className="btn-primary inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold shadow-sm"
+            >
+              <Save className="w-4 h-4" />
+              <span>{savingRecord ? 'Saving Attendance...' : 'Save Attendance'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* STEP 1: CLASS, TEACHER & DATE SELECTION CARD */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-sm space-y-4">
+          <h3 className="text-base font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+            1. Attendance Details
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
+                Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={recordForm.date}
+                onChange={(e) =>
+                  setRecordForm((prev) => ({ ...prev, date: e.target.value }))
+                }
+                className="input-field text-sm py-2.5"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
+                Class <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={recordForm.classId}
+                onChange={(e) =>
+                  setRecordForm((prev) => ({
+                    ...prev,
+                    classId: e.target.value,
+                    teacherId: '',
+                  }))
+                }
+                className="input-field text-sm py-2.5"
+              >
+                <option value="">Select Class</option>
+                {classes.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.className}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
+                Teacher <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={recordForm.teacherId}
+                onChange={(e) =>
+                  setRecordForm((prev) => ({ ...prev, teacherId: e.target.value }))
+                }
+                disabled={!recordForm.classId}
+                className="input-field text-sm py-2.5 disabled:opacity-50"
+              >
+                <option value="">Select Teacher</option>
+                {teachers.map((t) => (
+                  <option key={t._id} value={t._id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-4 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/50 rounded-xl text-blue-700 dark:text-blue-300 text-sm">
+            <Info className="w-5 h-5 shrink-0" />
+            <span>
+              Select the Class, Teacher, and Date to load the active student list for attendance recording.
+            </span>
+          </div>
+        </div>
+
+        {/* STEP 2: STUDENT ATTENDANCE SHEET CARD */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-sm p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-700/60 pb-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                2. Mark Student Attendance
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Total Students in Class: <span className="font-bold text-gray-900 dark:text-white">{sheetStudents.length}</span>
+              </p>
+            </div>
+
+            {sheetStudents.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 bg-gray-50 dark:bg-gray-900/60 p-2 rounded-xl border border-gray-200/60 dark:border-gray-700">
+                <span className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 px-2">
+                  Quick Actions:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleMarkAll('Present')}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm"
+                >
+                  Mark All Present
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMarkAll('Absent')}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition shadow-sm"
+                >
+                  Mark All Absent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMarkAll('Late')}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition shadow-sm"
+                >
+                  Mark All Late
+                </button>
+              </div>
+            )}
+          </div>
+
+          {sheetLoading ? (
+            <div className="py-16">
+              <LoadingSpinner />
+            </div>
+          ) : !recordForm.classId || !recordForm.teacherId ? (
+            <div className="py-16 text-center text-gray-500 dark:text-gray-400">
+              Please select Class and Teacher above to display students.
+            </div>
+          ) : sheetStudents.length === 0 ? (
+            <div className="py-16 text-center text-gray-500 dark:text-gray-400">
+              No active students found in this class.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-gray-200/80 dark:border-gray-700">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/80 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700">
+                    <th className="py-3.5 px-5 font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">
+                      #
+                    </th>
+                    <th className="py-3.5 px-5 font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Student ID
+                    </th>
+                    <th className="py-3.5 px-5 font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Student Name
+                    </th>
+                    <th className="py-3.5 px-5 font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Status Selection
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                  {sheetStudents.map((s, idx) => (
+                    <tr
+                      key={s._id}
+                      className="hover:bg-gray-50/60 dark:hover:bg-gray-700/30 transition-colors"
+                    >
+                      <td className="py-3.5 px-5 text-xs text-gray-400 font-mono">
+                        {idx + 1}
+                      </td>
+                      <td className="py-3.5 px-5 font-mono text-xs font-semibold text-primary-600 dark:text-primary-400">
+                        {s.studentId}
+                      </td>
+                      <td className="py-3.5 px-5 font-medium text-gray-900 dark:text-white">
+                        {s.name}
+                      </td>
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center gap-3">
+                          {[
+                            { id: 'Present', label: 'Present', activeBg: 'bg-emerald-600 text-white' },
+                            { id: 'Absent', label: 'Absent', activeBg: 'bg-red-600 text-white' },
+                            { id: 'Late', label: 'Late', activeBg: 'bg-amber-500 text-white' },
+                          ].map((st) => {
+                            const isSelected = s.status === st.id;
+                            return (
+                              <button
+                                key={st.id}
+                                type="button"
+                                onClick={() => updateSheetStatus(s._id, st.id)}
+                                className={`px-4 py-1.5 text-xs font-bold rounded-xl border transition-all duration-150 ${
+                                  isSelected
+                                    ? st.activeBg + ' border-transparent shadow-sm ring-2 ring-offset-1 ring-primary-500/20'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                              >
+                                {st.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* BOTTOM SAVE BUTTON BAR */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button
+              onClick={() => setView('list')}
+              className="btn-secondary px-6 py-2.5 rounded-xl font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveBulkAttendance}
+              disabled={savingRecord || !sheetStudents.length}
+              className="btn-primary inline-flex items-center gap-2 px-7 py-2.5 rounded-xl font-semibold shadow-sm"
+            >
+              <Save className="w-4 h-4" />
+              <span>{savingRecord ? 'Saving Attendance...' : 'Save Attendance'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ========================================================================
+     PAGE VIEW 1: MAIN ATTENDANCE MANAGEMENT DASHBOARD LIST
+     ======================================================================== */
   return (
     <div className="space-y-6 pb-12">
       {/* 1. HEADER */}
@@ -372,7 +636,7 @@ const AttendancePage = () => {
           </p>
         </div>
         <button
-          onClick={openRecordModal}
+          onClick={openRecordPage}
           className="inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm transition-all duration-200 hover:shadow"
         >
           <Plus className="w-5 h-5" />
@@ -709,206 +973,7 @@ const AttendancePage = () => {
         )}
       </div>
 
-      {/* 5. RECORD ATTENDANCE MODAL */}
-      <Modal
-        isOpen={recordModalOpen}
-        onClose={() => setRecordModalOpen(false)}
-        title="Record Class Attendance"
-        size="lg"
-      >
-        <div className="space-y-6">
-          {/* STEP 1 & 2: SELECT DATE & CLASS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200/60 dark:border-gray-700">
-            <div>
-              <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={recordForm.date}
-                onChange={(e) =>
-                  setRecordForm((prev) => ({ ...prev, date: e.target.value }))
-                }
-                className="input-field text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
-                Class <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={recordForm.classId}
-                onChange={(e) =>
-                  setRecordForm((prev) => ({
-                    ...prev,
-                    classId: e.target.value,
-                    teacherId: '',
-                  }))
-                }
-                className="input-field text-sm"
-              >
-                <option value="">Select Class</option>
-                {classes.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.className}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
-                Teacher <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={recordForm.teacherId}
-                onChange={(e) =>
-                  setRecordForm((prev) => ({ ...prev, teacherId: e.target.value }))
-                }
-                disabled={!recordForm.classId}
-                className="input-field text-sm disabled:opacity-50"
-              >
-                <option value="">Select Teacher</option>
-                {teachers.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* QUICK MARK BUTTONS */}
-          {sheetStudents.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-primary-50/40 dark:bg-primary-950/20 p-3.5 rounded-xl border border-primary-100 dark:border-primary-900/30">
-              <span className="text-xs font-semibold text-primary-900 dark:text-primary-200">
-                Quick Mark All Students:
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleMarkAll('Present')}
-                  className="px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
-                >
-                  Mark All Present
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMarkAll('Absent')}
-                  className="px-3 py-1 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
-                >
-                  Mark All Absent
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMarkAll('Late')}
-                  className="px-3 py-1 text-xs font-semibold rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition"
-                >
-                  Mark All Late
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STUDENTS LIST TABLE */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center justify-between">
-              <span>Class Students ({sheetStudents.length})</span>
-            </h4>
-
-            {sheetLoading ? (
-              <div className="py-8">
-                <LoadingSpinner />
-              </div>
-            ) : !recordForm.classId || !recordForm.teacherId ? (
-              <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                Please select both a Class and Teacher to view students.
-              </div>
-            ) : sheetStudents.length === 0 ? (
-              <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                No active students found in this class.
-              </div>
-            ) : (
-              <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden max-h-[380px] overflow-y-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 border-b border-gray-200 dark:border-gray-700">
-                    <tr>
-                      <th className="py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 w-12">#</th>
-                      <th className="py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400">Student Name</th>
-                      <th className="py-2.5 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400">Status Selection</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                    {sheetStudents.map((s, idx) => (
-                      <tr key={s._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
-                        <td className="py-3 px-4 text-xs text-gray-400 font-mono">{idx + 1}</td>
-                        <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">
-                          {s.name}
-                          <span className="block text-xs text-gray-400 font-normal font-mono">
-                            {s.studentId}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            {[
-                              { id: 'Present', label: 'Present', color: 'emerald' },
-                              { id: 'Absent', label: 'Absent', color: 'red' },
-                              { id: 'Late', label: 'Late', color: 'amber' },
-                            ].map((st) => {
-                              const isSelected = s.status === st.id;
-                              return (
-                                <button
-                                  key={st.id}
-                                  type="button"
-                                  onClick={() => updateSheetStatus(s._id, st.id)}
-                                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
-                                    isSelected
-                                      ? st.id === 'Present'
-                                        ? 'bg-emerald-600 text-white shadow-sm'
-                                        : st.id === 'Absent'
-                                        ? 'bg-red-600 text-white shadow-sm'
-                                        : 'bg-amber-500 text-white shadow-sm'
-                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                                  }`}
-                                >
-                                  {st.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* ACTION BUTTONS */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => setRecordModalOpen(false)}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveBulkAttendance}
-              disabled={savingRecord || !sheetStudents.length}
-              className="btn-primary inline-flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>{savingRecord ? 'Saving Attendance...' : 'Save Attendance'}</span>
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* 6. EDIT ATTENDANCE MODAL */}
+      {/* EDIT ATTENDANCE MODAL */}
       <Modal
         isOpen={editModal.open}
         onClose={() => setEditModal({ open: false, record: null, studentId: '', classId: '', date: '', status: 'Present' })}
