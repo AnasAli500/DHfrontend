@@ -66,6 +66,8 @@ const Exams = () => {
   const [filterPeriod, setFilterPeriod] = useState('');
 
   // ── Form data ──
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [periods, setPeriods] = useState([]);
@@ -116,11 +118,29 @@ const Exams = () => {
   // ═══════════════════════════════════════════════════════════════════════════
   // Data fetchers
   // ═══════════════════════════════════════════════════════════════════════════
-  const fetchClasses = useCallback(async () => {
-    const { data } = await api.get('/classes', { params: { limit: 100 } });
-    setClasses(data.classes);
-    setResultClasses(data.classes);
+  useEffect(() => {
+    const fetchYears = async () => {
+      try {
+        const { data } = await api.get('/students/academic-years');
+        const sorted = (data.years || []).sort((a, b) => b.localeCompare(a));
+        setAcademicYears(sorted);
+        if (sorted.length > 0) {
+          setSelectedAcademicYear(sorted[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic years', err);
+      }
+    };
+    fetchYears();
   }, []);
+
+  const fetchClasses = useCallback(async () => {
+    const params = { limit: 100 };
+    if (selectedAcademicYear) params.academicYear = selectedAcademicYear;
+    const { data } = await api.get('/classes', { params });
+    setClasses(data.classes || []);
+    setResultClasses(data.classes || []);
+  }, [selectedAcademicYear]);
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -587,11 +607,43 @@ const Exams = () => {
             <div className="card space-y-4">
               <h3 className="font-semibold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary-500" /> Exam Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Academic Year */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Academic Year <span className="text-red-500">*</span></label>
+                  <select
+                    className="input-field font-semibold text-primary-600 dark:text-primary-400"
+                    value={selectedAcademicYear}
+                    onChange={(e) => {
+                      setSelectedAcademicYear(e.target.value);
+                      setExamForm((prev) => ({
+                        ...prev,
+                        classId: '',
+                        teacherId: '',
+                        periodId: '',
+                        examSeasonId: '',
+                        examStructureId: '',
+                        examName: '',
+                        totalMarks: '',
+                      }));
+                    }}
+                  >
+                    {academicYears.length > 0 ? (
+                      academicYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="2026-2027">2026-2027</option>
+                    )}
+                  </select>
+                </div>
+
                 {/* Class */}
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Class <span className="text-red-500">*</span></label>
                   <select className="input-field" value={examForm.classId}
-                    onChange={(e) => setExamForm({ classId: e.target.value, teacherId: '', periodId: '', examSeasonId: '', examStructureId: '', examName: '', examDate: examForm.examDate, totalMarks: '' })}>
+                    onChange={(e) => setExamForm({ ...examForm, classId: e.target.value, teacherId: '', periodId: '', examSeasonId: '', examStructureId: '', examName: '', examDate: examForm.examDate, totalMarks: '' })}>
                     <option value="">Select Class</option>
                     {classes.map((c) => <option key={c._id} value={c._id}>{c.className}</option>)}
                   </select>
@@ -857,6 +909,23 @@ const Exams = () => {
           {/* Filters */}
           <div className="card">
             <div className="flex flex-col sm:flex-row gap-3">
+              {academicYears.length > 0 && (
+                <select
+                  className="input-field flex-1 font-semibold text-primary-600 dark:text-primary-400"
+                  value={selectedAcademicYear}
+                  onChange={(e) => {
+                    setSelectedAcademicYear(e.target.value);
+                    setFilterClass('');
+                    setPage(1);
+                  }}
+                >
+                  {academicYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select className="input-field flex-1" value={filterClass} onChange={(e) => { setFilterClass(e.target.value); setPage(1); }}>
                 <option value="">All Classes</option>
                 {classes.map((c) => <option key={c._id} value={c._id}>{c.className}</option>)}
