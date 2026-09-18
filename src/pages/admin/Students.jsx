@@ -135,13 +135,26 @@ const Students = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete or deactivate this student?')) return;
+    if (!confirm('Are you sure you want to delete this student?')) return;
     try {
       const res = await api.delete(`/students/${id}`);
       toast.success(res.data?.message || t('students.studentDeleted'));
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Delete failed');
+      if (err.response?.status === 409 || err.response?.data?.canDeactivate) {
+        const message = err.response?.data?.message || 'Cannot delete student with historical records.';
+        if (confirm(`${message}\n\nDo you want to Deactivate this student instead?`)) {
+          try {
+            await api.put(`/students/${id}`, { status: 'Inactive' });
+            toast.success('Student deactivated successfully');
+            fetchData();
+          } catch (deactErr) {
+            toast.error(deactErr.response?.data?.message || 'Failed to deactivate student');
+          }
+        }
+      } else {
+        toast.error(err.response?.data?.message || 'Delete failed');
+      }
     }
   };
 
