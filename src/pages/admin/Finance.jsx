@@ -13,6 +13,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../context/SettingsContext';
+import ParentPhoneDropdown from '../../components/common/ParentPhoneDropdown';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -228,6 +229,7 @@ const Finance = () => {
   const [studentBalances, setStudentBalances] = useState([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [tableLoading, setTableLoading] = useState(false);
+  const [openPhoneMenu, setOpenPhoneMenu] = useState(null);
 
   // Fee Structure CRUD state
   const [feeModalOpen, setFeeModalOpen] = useState(false);
@@ -1062,6 +1064,7 @@ const Finance = () => {
                     </th>
                     <th className="py-3 px-3 text-left">Student ID</th>
                     <th className="py-3 px-3 text-left">Student Name</th>
+                    <th className="py-3 px-3 text-left">Parent Phone</th>
                     <th className="py-3 px-3 text-right">Original Fee</th>
                     <th className="py-3 px-3 text-right">Discount</th>
                     <th className="py-3 px-3 text-right">Amount Required</th>
@@ -1095,6 +1098,14 @@ const Finance = () => {
                           </td>
                           <td className="py-3 px-3 font-semibold text-gray-900 dark:text-white">
                             {student.name}
+                          </td>
+                          <td className="py-3 px-3">
+                            <ParentPhoneDropdown
+                              phone={student.parentPhone}
+                              studentId={student._id}
+                              openMenuId={openPhoneMenu}
+                              setOpenMenuId={setOpenPhoneMenu}
+                            />
                           </td>
                           <td className="py-3 px-3 text-right font-medium">{formatCurrency(student.originalFee)}</td>
                           <td className="py-3 px-3 text-right font-medium text-emerald-600 dark:text-emerald-400">
@@ -1142,7 +1153,7 @@ const Finance = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-gray-400">
+                      <td colSpan={11} className="py-12 text-center text-gray-400">
                         No active students found for selected Academic Year, Class, and Fee Structure.
                       </td>
                     </tr>
@@ -1238,6 +1249,7 @@ const Finance = () => {
               <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700 text-gray-500 font-bold uppercase">
                 <th className="py-3 px-4 text-left">Student ID</th>
                 <th className="py-3 px-4 text-left">Student Name</th>
+                <th className="py-3 px-4 text-left">Parent Phone</th>
                 <th className="py-3 px-4 text-right">Original Fee</th>
                 <th className="py-3 px-4 text-right">Discount</th>
                 <th className="py-3 px-4 text-right">Amount Required</th>
@@ -1253,6 +1265,14 @@ const Finance = () => {
                     {student.studentId}
                   </td>
                   <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{student.name}</td>
+                  <td className="py-3 px-4">
+                    <ParentPhoneDropdown
+                      phone={student.parentPhone}
+                      studentId={student._id}
+                      openMenuId={openPhoneMenu}
+                      setOpenMenuId={setOpenPhoneMenu}
+                    />
+                  </td>
                   <td className="py-3 px-4 text-right">{formatCurrency(student.originalFee)}</td>
                   <td className="py-3 px-4 text-right text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(student.discountAmount)}
