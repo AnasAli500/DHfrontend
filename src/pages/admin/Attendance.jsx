@@ -1502,19 +1502,26 @@ const AttendancePage = () => {
             <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
               Recipients Preview ({selectedAbsentRecords.length})
             </label>
-            <div className="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl divide-y divide-gray-100 dark:divide-gray-700/60 bg-gray-50/50 dark:bg-gray-900/40">
+            <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl divide-y divide-gray-100 dark:divide-gray-700/60 bg-gray-50/50 dark:bg-gray-900/40">
               {selectedAbsentRecords.map((rec) => {
                 const pPhone = getParentPhone(rec.studentId);
+                const cleanPhone = pPhone !== '-' ? pPhone.replace(/[+\s\-()]/g, '').replace(/\D/g, '') : '';
+                const sName = rec.studentId?.name || 'Student';
+                const cName = rec.classId?.className || '-';
+                const dVal = formatDateDisplay(rec.date);
+                const individualMsg = smsTemplateText
+                  .replace(/\{studentName\}/g, sName)
+                  .replace(/\{className\}/g, cName)
+                  .replace(/\{date\}/g, dVal);
+
                 return (
-                  <div key={rec._id} className="p-2.5 flex items-center justify-between text-xs">
+                  <div key={rec._id} className="p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div>
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {rec.studentId?.name || 'Unknown Student'}
-                      </span>
-                      <span className="text-gray-400 ml-2 font-medium">({rec.classId?.className || '-'})</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{sName}</span>
+                      <span className="text-gray-400 ml-1.5 font-medium">({cName})</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500 font-mono text-[11px]">{formatDateDisplay(rec.date)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 font-mono text-[11px]">{dVal}</span>
                       <span
                         className={`font-mono px-2 py-0.5 rounded text-[11px] font-semibold ${
                           pPhone !== '-'
@@ -1524,6 +1531,27 @@ const AttendancePage = () => {
                       >
                         {pPhone !== '-' ? pPhone : 'No Phone'}
                       </span>
+
+                      {cleanPhone && (
+                        <div className="flex items-center gap-1">
+                          <a
+                            href={`sms:${cleanPhone}?body=${encodeURIComponent(individualMsg)}`}
+                            className="px-2 py-0.5 bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 rounded hover:bg-blue-100 font-semibold text-[11px] transition inline-flex items-center gap-1"
+                            title="Open phone SMS app"
+                          >
+                            📱 SMS
+                          </a>
+                          <a
+                            href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(individualMsg)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-0.5 bg-green-50 text-green-700 dark:bg-green-950/60 dark:text-green-300 rounded hover:bg-green-100 font-semibold text-[11px] transition inline-flex items-center gap-1"
+                            title="Open WhatsApp chat"
+                          >
+                            💬 WA
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1532,7 +1560,7 @@ const AttendancePage = () => {
           </div>
 
           {/* ACTION BUTTONS */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={() => setSmsModalOpen(false)}
@@ -1547,7 +1575,7 @@ const AttendancePage = () => {
               className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-md disabled:opacity-50 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>{sendingSms ? 'Sending...' : 'Send SMS to Selected'}</span>
+              <span>{sendingSms ? 'Sending...' : '🚀 Send SMS API'}</span>
             </button>
           </div>
         </div>
