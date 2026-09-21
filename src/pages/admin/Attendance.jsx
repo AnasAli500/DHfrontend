@@ -17,7 +17,8 @@ import {
   Info,
   GraduationCap,
   Phone,
-  MessageCircle
+  MessageCircle,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -141,6 +142,32 @@ const AttendancePage = () => {
   const formatWhatsAppNumber = (phoneStr) => {
     if (!phoneStr || phoneStr === '-') return '';
     return phoneStr.replace(/[+\s\-()]/g, '').replace(/\D/g, '');
+  };
+
+  // Helper to generate dynamic SMS attendance message
+  const generateSmsMessage = (rec) => {
+    const studentName = rec.studentId?.name || 'Student';
+    const dateStr = formatDateDisplay(rec.date);
+    const className = rec.classId?.className || '-';
+    const status = rec.status || 'Present';
+
+    let statusLine = `Ardayga ${studentName} maanta wuxuu yimid iskuulka.`;
+    if (status === 'Absent') {
+      statusLine = `Ardayga ${studentName} wuxuu maanta ka maqnaa iskuulka.`;
+    } else if (status === 'Late') {
+      statusLine = `Ardayga ${studentName} wuxuu maanta yimid isagoo soo daahay.`;
+    }
+
+    return `Asc, waalidka ${studentName}.
+
+${statusLine}
+
+Date: ${dateStr}
+Class: ${className}
+Status: ${status}
+
+Mahadsanid.
+Dhambaal School`;
   };
 
   // Close Phone Menu on Click Outside
@@ -1043,6 +1070,7 @@ const AttendancePage = () => {
                           return <span>-</span>;
                         }
                         const cleanWhatsApp = formatWhatsAppNumber(parentPhone);
+                        const smsBody = generateSmsMessage(rec);
                         const isOpen = activePhoneMenuId === rec._id;
 
                         return (
@@ -1054,7 +1082,7 @@ const AttendancePage = () => {
                                 setActivePhoneMenuId(isOpen ? null : rec._id);
                               }}
                               className="inline-flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-lg text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-700/60 font-mono transition-all duration-150 cursor-pointer group"
-                              title="Click to Call or WhatsApp parent"
+                              title="Click for Call, WhatsApp, or SMS options"
                             >
                               <span>{parentPhone}</span>
                               <ChevronDown
@@ -1089,6 +1117,14 @@ const AttendancePage = () => {
                                 >
                                   <MessageCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400 shrink-0" />
                                   <span>💬 WhatsApp</span>
+                                </a>
+                                <a
+                                  href={`sms:${parentPhone}?body=${encodeURIComponent(smsBody)}`}
+                                  onClick={() => setActivePhoneMenuId(null)}
+                                  className="flex items-center gap-2.5 px-3.5 py-2 text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300 transition-colors border-t border-gray-100 dark:border-gray-700/60"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                  <span>💬 SMS</span>
                                 </a>
                               </div>
                             )}
