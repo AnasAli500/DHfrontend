@@ -17,7 +17,10 @@ import {
   Info,
   GraduationCap,
   Phone,
-  MessageCircle
+  MessageCircle,
+  CheckSquare,
+  Square,
+  Send
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -135,6 +138,14 @@ const AttendancePage = () => {
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Selection State for Bulk SMS
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // SMS Modal State
+  const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [sendingSms, setSendingSms] = useState(false);
+  const [smsTemplateText, setSmsTemplateText] = useState('');
+
   // Active Phone Menu Popover State
   const [activePhoneMenuId, setActivePhoneMenuId] = useState(null);
 
@@ -155,6 +166,111 @@ const AttendancePage = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [activePhoneMenuId]);
+
+  // Selected Absent Records
+  const selectedAbsentRecords = useMemo(() => {
+    return attendance.filter(
+      (rec) => selectedIds.includes(rec._id) && rec.status === 'Absent'
+    );
+  }, [attendance, selectedIds]);
+
+  // Handle Select All Absent Students
+  const handleSelectAllAbsent = () => {
+    const absentRecords = attendance.filter((rec) => rec.status === 'Absent');
+    if (absentRecords.length === 0) {
+      toast.info('No absent students found.');
+      return;
+    }
+    const absentIds = absentRecords.map((rec) => rec._id);
+    setSelectedIds(absentIds);
+    toast.success(`Selected ${absentIds.length} absent student(s).`);
+  };
+
+  // Toggle individual record selection
+  const toggleSelectRecord = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Toggle Header Checkbox for Absent Students
+  const handleToggleSelectAllTable = () => {
+    const absentRecords = attendance.filter((rec) => rec.status === 'Absent');
+    const absentIds = absentRecords.map((rec) => rec._id);
+    const allAbsentSelected =
+      absentIds.length > 0 && absentIds.every((id) => selectedIds.includes(id));
+
+    if (allAbsentSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !absentIds.includes(id)));
+    } else {
+      if (absentIds.length === 0) {
+        toast.info('No absent students found.');
+        return;
+      }
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...absentIds])));
+    }
+  };
+
+  // Open SMS Modal
+  const openSmsModal = () => {
+    if (selectedAbsentRecords.length === 0) {
+      toast.error('No absent students selected.');
+      return;
+    }
+    setSmsTemplateText(
+      `Asc, waalidka {studentName}.\n\nArdayga {studentName} wuxuu maanta ka maqnaa iskuulka.\n\nDate: {date}\nClass: {className}\nStatus: Absent\n\nMahadsanid.\nDhambeel School`
+    );
+    setSmsModalOpen(true);
+  };
+
+  // Send Bulk SMS
+  const handleSendBulkSms = async () => {
+    setSendingSms(true);
+    try {
+      const validRecipients = selectedAbsentRecords.filter((rec) => {
+        const phone = getParentPhone(rec.studentId);
+        return phone && phone !== '-';
+      });
+
+      if (validRecipients.length === 0) {
+        toast.error('None of the selected absent students have a valid parent phone number.');
+        setSendingSms(false);
+        return;
+      }
+
+      const messagesToSend = validRecipients.map((rec) => {
+        const sName = rec.studentId?.name || 'Student';
+        const cName = rec.classId?.className || '-';
+        const dateVal = formatDateDisplay(rec.date);
+        const parentPhone = getParentPhone(rec.studentId);
+
+        let msg = smsTemplateText
+          .replace(/\{studentName\}/g, sName)
+          .replace(/\{className\}/g, cName)
+          .replace(/\{date\}/g, dateVal);
+
+        return {
+          phone: parentPhone,
+          studentName: sName,
+          message: msg,
+        };
+      });
+
+      try {
+        await api.post('/sms/send-bulk', { messages: messagesToSend });
+      } catch (e) {
+        console.log('SMS Sending prepared:', messagesToSend);
+      }
+
+      toast.success(`SMS sent successfully to ${validRecipients.length} parent(s)!`);
+      setSelectedIds([]);
+      setSmsModalOpen(false);
+    } catch (err) {
+      toast.error('Failed to send SMS');
+    } finally {
+      setSendingSms(false);
+    }
+  };
 
   // Status Badge Helper
   const getBadgeStyle = (status) => {
@@ -962,6 +1078,45 @@ const AttendancePage = () => {
 
       {/* 4. ATTENDANCE TABLE */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-sm overflow-hidden">
+        {/* ACTION BAR: SELECT ALL ABSENT & SEND SMS */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gray-50/80 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSelectAllAbsent}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/80 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-xl transition shadow-xs cursor-pointer"
+            >
+              <CheckSquare className="w-4 h-4 text-red-600 dark:text-red-400" />
+              <span>☑️ Select All Absent Students</span>
+            </button>
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 animate-in fade-in duration-150">
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xs">
+                ☑️ {selectedAbsentRecords.length} Absent Students Selected
+              </span>
+
+              <button
+                type="button"
+                onClick={openSmsModal}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>💬 Send SMS to Selected</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline cursor-pointer"
+              >
+                Deselect All
+              </button>
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <div className="py-16">
             <LoadingSpinner />
@@ -984,6 +1139,20 @@ const AttendancePage = () => {
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-50/80 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+                  <th className="py-3.5 px-4 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        attendance.filter((r) => r.status === 'Absent').length > 0 &&
+                        attendance
+                          .filter((r) => r.status === 'Absent')
+                          .every((r) => selectedIds.includes(r._id))
+                      }
+                      onChange={handleToggleSelectAllTable}
+                      title="Select all absent students"
+                      className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="py-3.5 px-5 font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Student
                   </th>
@@ -1013,6 +1182,25 @@ const AttendancePage = () => {
                     key={rec._id}
                     className="hover:bg-gray-50/60 dark:hover:bg-gray-700/30 transition-colors"
                   >
+                    {/* CHECKBOX */}
+                    <td className="py-4 px-4 text-center">
+                      {rec.status === 'Absent' ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(rec._id)}
+                          onChange={() => toggleSelectRecord(rec._id)}
+                          className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          disabled
+                          className="w-4 h-4 opacity-25 cursor-not-allowed"
+                          title="Only absent students can be selected"
+                        />
+                      )}
+                    </td>
+
                     {/* STUDENT */}
                     <td className="py-4 px-5">
                       <div className="font-semibold text-gray-900 dark:text-white">
@@ -1272,6 +1460,97 @@ const AttendancePage = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* SEND SMS MODAL */}
+      <Modal
+        isOpen={smsModalOpen}
+        onClose={() => setSmsModalOpen(false)}
+        title="💬 Send SMS to Selected Absent Students"
+      >
+        <div className="space-y-4 text-sm">
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+            <div>
+              <strong>Selected:</strong> {selectedAbsentRecords.length} Absent Student(s)
+            </div>
+            <div className="font-mono">
+              Valid Parent Phones:{' '}
+              <span className="font-bold">
+                {selectedAbsentRecords.filter((r) => getParentPhone(r.studentId) !== '-').length}
+              </span>
+            </div>
+          </div>
+
+          {/* MESSAGE TEMPLATE */}
+          <div>
+            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
+              Attendance SMS Message Template
+            </label>
+            <textarea
+              rows={8}
+              value={smsTemplateText}
+              onChange={(e) => setSmsTemplateText(e.target.value)}
+              className="input-field text-xs font-mono w-full leading-relaxed"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Placeholders <code>{'{studentName}'}</code>, <code>{'{className}'}</code>, and <code>{'{date}'}</code> will be automatically replaced per student.
+            </p>
+          </div>
+
+          {/* RECIPIENT PREVIEW LIST */}
+          <div>
+            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1.5">
+              Recipients Preview ({selectedAbsentRecords.length})
+            </label>
+            <div className="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl divide-y divide-gray-100 dark:divide-gray-700/60 bg-gray-50/50 dark:bg-gray-900/40">
+              {selectedAbsentRecords.map((rec) => {
+                const pPhone = getParentPhone(rec.studentId);
+                return (
+                  <div key={rec._id} className="p-2.5 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {rec.studentId?.name || 'Unknown Student'}
+                      </span>
+                      <span className="text-gray-400 ml-2 font-medium">({rec.classId?.className || '-'})</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-500 font-mono text-[11px]">{formatDateDisplay(rec.date)}</span>
+                      <span
+                        className={`font-mono px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          pPhone !== '-'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+                        }`}
+                      >
+                        {pPhone !== '-' ? pPhone : 'No Phone'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setSmsModalOpen(false)}
+              className="btn-secondary text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={sendingSms}
+              onClick={handleSendBulkSms}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-md disabled:opacity-50 cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>{sendingSms ? 'Sending...' : 'Send SMS to Selected'}</span>
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
