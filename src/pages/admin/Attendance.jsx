@@ -15,7 +15,9 @@ import {
   ArrowLeft,
   ChevronDown,
   Info,
-  GraduationCap
+  GraduationCap,
+  Phone,
+  MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -132,6 +134,27 @@ const AttendancePage = () => {
     status: 'Present',
   });
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Active Phone Menu Popover State
+  const [activePhoneMenuId, setActivePhoneMenuId] = useState(null);
+
+  const formatWhatsAppNumber = (phoneStr) => {
+    if (!phoneStr || phoneStr === '-') return '';
+    return phoneStr.replace(/[+\s\-()]/g, '').replace(/\D/g, '');
+  };
+
+  // Close Phone Menu on Click Outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (activePhoneMenuId && !event.target.closest('[data-phone-menu]')) {
+        setActivePhoneMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activePhoneMenuId]);
 
   // Status Badge Helper
   const getBadgeStyle = (status) => {
@@ -957,7 +980,7 @@ const AttendancePage = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[300px]">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-50/80 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
@@ -985,7 +1008,7 @@ const AttendancePage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                {attendance.map((rec) => (
+                {attendance.map((rec, idx) => (
                   <tr
                     key={rec._id}
                     className="hover:bg-gray-50/60 dark:hover:bg-gray-700/30 transition-colors"
@@ -1013,8 +1036,65 @@ const AttendancePage = () => {
                     </td>
 
                     {/* PARENT PHONE */}
-                    <td className="py-4 px-5 font-mono text-gray-600 dark:text-gray-400">
-                      {getParentPhone(rec.studentId)}
+                    <td className="py-4 px-5 font-mono text-gray-600 dark:text-gray-400 relative">
+                      {(() => {
+                        const parentPhone = getParentPhone(rec.studentId);
+                        if (!parentPhone || parentPhone === '-') {
+                          return <span>-</span>;
+                        }
+                        const cleanWhatsApp = formatWhatsAppNumber(parentPhone);
+                        const isOpen = activePhoneMenuId === rec._id;
+
+                        return (
+                          <div className="relative inline-block" data-phone-menu>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePhoneMenuId(isOpen ? null : rec._id);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-lg text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-700/60 font-mono transition-all duration-150 cursor-pointer group"
+                              title="Click to Call or WhatsApp parent"
+                            >
+                              <span>{parentPhone}</span>
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-transform duration-200 ${
+                                  isOpen ? 'rotate-180 text-primary-600 dark:text-primary-400' : ''
+                                }`}
+                              />
+                            </button>
+
+                            {isOpen && (
+                              <div
+                                className={`absolute left-0 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 text-xs font-semibold animate-in fade-in zoom-in-95 duration-100 ${
+                                  idx >= attendance.length - 2 && attendance.length > 3
+                                    ? 'bottom-full mb-1.5'
+                                    : 'top-full mt-1.5'
+                                }`}
+                              >
+                                <a
+                                  href={`tel:${parentPhone}`}
+                                  onClick={() => setActivePhoneMenuId(null)}
+                                  className="flex items-center gap-2.5 px-3.5 py-2 text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                                >
+                                  <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <span>📞 Call</span>
+                                </a>
+                                <a
+                                  href={`https://wa.me/${cleanWhatsApp}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => setActivePhoneMenuId(null)}
+                                  className="flex items-center gap-2.5 px-3.5 py-2 text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-950/40 hover:text-green-700 dark:hover:text-green-300 transition-colors border-t border-gray-100 dark:border-gray-700/60"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                                  <span>💬 WhatsApp</span>
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* DATE */}
