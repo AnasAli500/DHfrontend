@@ -3,9 +3,9 @@ import {
   DollarSign, TrendingDown, Wallet, AlertCircle,
   Plus, Pencil, Trash2, Printer, LayoutDashboard,
   CheckCircle2, Clock, Eye, Download, Search, Filter,
-  ChevronRight, Calendar, UserCheck, CreditCard, RefreshCw, FileText
+  ChevronRight, Calendar, UserCheck, CreditCard, RefreshCw, FileText,
+  Users, Link as LinkIcon, Shield, Star, UserX, ChevronDown, ChevronUp, Check
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../../api/axios';
 import Modal from '../../components/common/Modal';
 import Pagination from '../../components/common/Pagination';
@@ -50,7 +50,7 @@ const ReceiptModal = ({ payment, onClose }) => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt ${payment.receiptNo}</title>
+          <title>Receipt ${payment.receiptNo || payment.receiptGroupNo || 'Receipt'}</title>
           <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; max-width: 650px; margin: 0 auto; }
             .header { text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 20px; margin-bottom: 20px; }
@@ -94,7 +94,7 @@ const ReceiptModal = ({ payment, onClose }) => {
             </h2>
             <p className="subtitle text-xs text-gray-500 font-semibold tracking-wider uppercase">Official Payment Receipt</p>
             <div className="mt-2 inline-block px-3 py-1 bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-mono text-xs font-bold rounded-full border border-purple-200 dark:border-purple-800">
-              {payment.receiptNo}
+              {payment.receiptNo || payment.receiptGroupNo}
             </div>
           </div>
 
@@ -102,51 +102,60 @@ const ReceiptModal = ({ payment, onClose }) => {
             <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
               <span className="text-gray-500 dark:text-gray-400">Student ID & Name</span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {payment.studentId?.studentId || '—'} — {payment.studentId?.name}
+                {payment.studentId?.studentId || '—'} — {payment.studentId?.name || payment.studentName || 'Multiple Students'}
               </span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
-              <span className="text-gray-500 dark:text-gray-400">Academic Year & Class</span>
-              <span className="font-medium text-gray-900 dark:text-white">
-                {payment.academicYear} | {payment.classId?.className || '—'}
-              </span>
-            </div>
+            {payment.academicYear && (
+              <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
+                <span className="text-gray-500 dark:text-gray-400">Academic Year & Class</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {payment.academicYear} | {payment.classId?.className || '—'}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
               <span className="text-gray-500 dark:text-gray-400">Fee Structure</span>
               <span className="font-medium text-purple-700 dark:text-purple-400 font-semibold">
-                {payment.feeName} ({periodDisplay})
+                {payment.feeName || 'Family Multi-Payment'} ({periodDisplay})
               </span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
-              <span className="text-gray-500 dark:text-gray-400">Original Fee</span>
-              <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(payment.originalAmount)}</span>
-            </div>
-            {payment.discountAmount > 0 && (
-              <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50 text-emerald-600 dark:text-emerald-400">
-                <span>Discount Applied ({payment.discountType === 'Percentage' ? `${payment.discountValue}%` : `$${payment.discountValue}`})</span>
-                <span className="font-medium">−{formatCurrency(payment.discountAmount)}</span>
+
+            {payment.isFamilyPayment && payment.allocations && (
+              <div className="my-3 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-800 space-y-2">
+                <div className="font-bold text-xs text-purple-900 dark:text-purple-300 uppercase tracking-wide">Family Allocations</div>
+                {payment.allocations.map((alloc, i) => (
+                  <div key={i} className="flex justify-between text-xs py-1 border-b border-purple-100/50 dark:border-purple-800/50 last:border-0">
+                    <span>{alloc.studentId?.studentId} - {alloc.studentId?.name}</span>
+                    <span className="font-bold text-emerald-600">{formatCurrency(alloc.allocatedAmount)}</span>
+                  </div>
+                ))}
               </div>
             )}
-            <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
-              <span className="text-gray-500 dark:text-gray-400">Amount Required</span>
-              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(payment.amountRequired)}</span>
-            </div>
-            {payment.previouslyPaid > 0 && (
-              <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50 text-blue-600 dark:text-blue-400">
-                <span>Previously Paid</span>
-                <span className="font-medium">{formatCurrency(payment.previouslyPaid)}</span>
-              </div>
+
+            {!payment.isFamilyPayment && (
+              <>
+                <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
+                  <span className="text-gray-500 dark:text-gray-400">Original Fee</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(payment.originalAmount)}</span>
+                </div>
+                {payment.discountAmount > 0 && (
+                  <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50 text-emerald-600 dark:text-emerald-400">
+                    <span>Discount Applied ({payment.discountType === 'Percentage' ? `${payment.discountValue}%` : `$${payment.discountValue}`})</span>
+                    <span className="font-medium">−{formatCurrency(payment.discountAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
+                  <span className="text-gray-500 dark:text-gray-400">Amount Required</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(payment.amountRequired)}</span>
+                </div>
+              </>
             )}
+
             <div className="flex justify-between py-2 border-b-2 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 font-bold bg-purple-50 dark:bg-purple-950/40 px-2 rounded">
-              <span>Current Payment</span>
-              <span>{formatCurrency(payment.paidAmount)}</span>
+              <span>Total Payment</span>
+              <span>{formatCurrency(payment.paidAmount || payment.totalPaid)}</span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
-              <span className="text-gray-500 dark:text-gray-400">Remaining Balance</span>
-              <span className={`font-semibold ${payment.balance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {formatCurrency(payment.balance)}
-              </span>
-            </div>
+
             <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
               <span className="text-gray-500 dark:text-gray-400">Payment Method & Ref</span>
               <span className="font-medium text-gray-900 dark:text-white">
@@ -156,13 +165,7 @@ const ReceiptModal = ({ payment, onClose }) => {
             <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
               <span className="text-gray-500 dark:text-gray-400">Date & Recorded By</span>
               <span className="font-medium text-gray-900 dark:text-white">
-                {payment.paymentDate?.split('T')[0]} ({payment.recordedBy?.name || 'Admin'})
-              </span>
-            </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-gray-500 dark:text-gray-400">Payment Status</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${STATUS_BADGES[payment.status] || ''}`}>
-                {payment.status}
+                {(payment.paymentDate || payment.createdAt)?.split('T')[0]} ({payment.recordedBy?.name || 'Admin'})
               </span>
             </div>
           </div>
@@ -210,7 +213,6 @@ const Finance = () => {
   // Filters
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState('All');
 
   // Finance Summary Data
   const [summaryData, setSummaryData] = useState({
@@ -257,7 +259,42 @@ const Finance = () => {
     referenceNumber: '',
     paymentDate: new Date().toISOString().split('T')[0],
     note: '',
+    allowFreeOverride: false
   });
+
+  // Student Finance Profile State (Discount & Free Student)
+  const [financeProfile, setFinanceProfile] = useState({
+    financeStatus: 'normal',
+    discountType: 'Fixed',
+    discountValue: 0,
+    notes: '',
+    discountHistory: []
+  });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [showDiscountHistory, setShowDiscountHistory] = useState(false);
+
+  // Family / Brothers State
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [familyGroup, setFamilyGroup] = useState(null);
+  const [familyLoading, setFamilyLoading] = useState(false);
+
+  // Add Brother Modal
+  const [addBrotherModalOpen, setAddBrotherModalOpen] = useState(false);
+  const [familySearchQuery, setFamilySearchQuery] = useState('');
+  const [familySearchResults, setFamilySearchResults] = useState([]);
+  const [familySearchLoading, setFamilySearchLoading] = useState(false);
+
+  // Family Payment Modal
+  const [familyPayModalOpen, setFamilyPayModalOpen] = useState(false);
+  const [familyPayForm, setFamilyPayForm] = useState({
+    totalPaid: '',
+    paymentMethod: 'Cash',
+    referenceNumber: '',
+    paymentDate: new Date().toISOString().split('T')[0],
+    note: '',
+  });
+  const [familyPayStudents, setFamilyPayStudents] = useState([]);
+  const [familyPayAllocations, setFamilyPayAllocations] = useState({});
 
   // Bulk Payment Modal
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -286,16 +323,6 @@ const Finance = () => {
 
   // Expenses state
   const [expenses, setExpenses] = useState([]);
-  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
-  const [expenseEditId, setExpenseEditId] = useState(null);
-  const [expenseForm, setExpenseForm] = useState({
-    title: '',
-    category: 'Salary',
-    amount: '',
-    payee: '',
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-  });
 
   // 1. Initial Load: Academic Years
   useEffect(() => {
@@ -305,7 +332,7 @@ const Finance = () => {
         const sorted = data.years || [];
         setAcademicYears(sorted);
         if (sorted.length > 0) {
-          setSelectedYear(sorted[0]); // default newest academic year
+          setSelectedYear(sorted[0]);
         }
       } catch (err) {
         toast.error('Failed to load academic years');
@@ -335,7 +362,6 @@ const Finance = () => {
       }
     };
     loadClasses();
-    // Reset selections on year change
     setSelectedStudentIds([]);
   }, [selectedYear]);
 
@@ -520,7 +546,6 @@ const Finance = () => {
       }
       setFeeModalOpen(false);
 
-      // Refresh list
       const { data } = await api.get('/finance/fee-structures', {
         params: { academicYear: selectedYear, classId: selectedClassId },
       });
@@ -536,7 +561,6 @@ const Finance = () => {
       await api.delete(`/finance/fee-structures/${feeId}`);
       toast.success('Fee structure deleted');
       setFeeModalOpen(false);
-      // Refresh
       const { data } = await api.get('/finance/fee-structures', {
         params: { academicYear: selectedYear, classId: selectedClassId },
       });
@@ -577,6 +601,128 @@ const Finance = () => {
     }
   };
 
+  // ── Student Finance Profile & Family Handlers ──
+
+  const fetchStudentProfileData = async (studentId) => {
+    setProfileLoading(true);
+    try {
+      const { data } = await api.get(`/finance/student-profile/${studentId}`);
+      setFinanceProfile(data);
+    } catch (err) {
+      console.error(err);
+      setFinanceProfile({
+        financeStatus: 'normal',
+        discountType: 'Fixed',
+        discountValue: 0,
+        notes: '',
+        discountHistory: []
+      });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleSaveFinanceProfile = async () => {
+    if (!paymentStudent) return;
+    try {
+      const { data } = await api.put(`/finance/student-profile/${paymentStudent._id}`, {
+        financeStatus: financeProfile.financeStatus,
+        discountType: financeProfile.discountType,
+        discountValue: Number(financeProfile.discountValue) || 0,
+        notes: financeProfile.notes
+      });
+      toast.success(data.message || 'Student finance profile updated');
+      setFinanceProfile(data.profile);
+      // Sync payForm
+      setPayForm(prev => ({
+        ...prev,
+        discountType: data.profile.discountType,
+        discountValue: data.profile.discountValue
+      }));
+      fetchStudentBalances();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save profile');
+    }
+  };
+
+  const handleRemoveDiscount = async () => {
+    if (!paymentStudent) return;
+    if (!confirm('Are you sure you want to remove persistent discount from this student?')) return;
+    try {
+      const { data } = await api.delete(`/finance/student-profile/${paymentStudent._id}/discount`);
+      toast.success(data.message || 'Discount removed');
+      setFinanceProfile(data.profile);
+      setPayForm(prev => ({ ...prev, discountValue: 0 }));
+      fetchStudentBalances();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to remove discount');
+    }
+  };
+
+  const fetchStudentFamilyData = async (studentId) => {
+    setFamilyLoading(true);
+    try {
+      const { data } = await api.get(`/finance/students/${studentId}/family`);
+      setFamilyGroup(data.familyGroup || null);
+      setFamilyMembers(data.familyMembers || []);
+    } catch (err) {
+      console.error(err);
+      setFamilyGroup(null);
+      setFamilyMembers([]);
+    } finally {
+      setFamilyLoading(false);
+    }
+  };
+
+  const handleSearchFamilyStudents = async (query) => {
+    setFamilySearchQuery(query);
+    if (!query || query.trim().length < 2) {
+      setFamilySearchResults([]);
+      return;
+    }
+    setFamilySearchLoading(true);
+    try {
+      const { data } = await api.get('/finance/students/search-for-family', {
+        params: { search: query, excludeStudentId: paymentStudent?._id }
+      });
+      setFamilySearchResults(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFamilySearchLoading(false);
+    }
+  };
+
+  const handleLinkBrother = async (targetStudentId) => {
+    if (!paymentStudent) return;
+    try {
+      await api.post('/finance/family-groups/link', {
+        studentId1: paymentStudent._id,
+        studentId2: targetStudentId
+      });
+      toast.success('Brother/Sister linked successfully');
+      setAddBrotherModalOpen(false);
+      fetchStudentFamilyData(paymentStudent._id);
+      fetchStudentBalances();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to link family member');
+    }
+  };
+
+  const handleUnlinkBrother = async (studentIdToUnlink) => {
+    if (!confirm('Are you sure you want to remove this student from the family group?')) return;
+    try {
+      await api.post('/finance/family-groups/unlink', { studentId: studentIdToUnlink });
+      toast.success('Student unlinked from family group');
+      if (paymentStudent) {
+        fetchStudentFamilyData(paymentStudent._id);
+      }
+      fetchStudentBalances();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to unlink student');
+    }
+  };
+
   // ── Individual Payment Handlers ──
 
   const openIndividualPayment = (student) => {
@@ -589,13 +735,20 @@ const Finance = () => {
       referenceNumber: '',
       paymentDate: new Date().toISOString().split('T')[0],
       note: '',
+      allowFreeOverride: false
     });
+    setShowDiscountHistory(false);
     setPayModalOpen(true);
+    fetchStudentProfileData(student._id);
+    fetchStudentFamilyData(student._id);
   };
 
   // Live discount recalculation in individual modal
   const calcIndividualModalDetails = () => {
     if (!paymentStudent || !currentFeeStructure) return { req: 0, discAmt: 0, pendingNow: 0 };
+    if (financeProfile.financeStatus === 'free' && !payForm.allowFreeOverride) {
+      return { req: 0, discAmt: currentFeeStructure.amount, pendingNow: 0 };
+    }
     const orig = currentFeeStructure.amount;
     const discVal = Number(payForm.discountValue) || 0;
     let discAmt = 0;
@@ -613,6 +766,11 @@ const Finance = () => {
   const handleIndividualPaySubmit = async (e) => {
     e.preventDefault();
     if (!paymentStudent || !currentFeeStructure) return;
+
+    if (financeProfile.financeStatus === 'free' && !payForm.allowFreeOverride) {
+      toast.error('Student is marked as FREE. Check "Override Free status" if charging is required.');
+      return;
+    }
 
     const { pendingNow } = calcIndividualModalDetails();
     const pmtNow = Number(payForm.paymentNow);
@@ -641,19 +799,148 @@ const Finance = () => {
         referenceNumber: payForm.referenceNumber,
         paymentDate: payForm.paymentDate,
         note: payForm.note,
+        allowFreeOverride: payForm.allowFreeOverride
       };
 
       const { data } = await api.post('/finance/payments', payload);
       toast.success('Payment recorded successfully');
       setPayModalOpen(false);
-
-      // Open Receipt Modal
       setActiveReceipt(data);
-
-      // Refresh student balances and live summary
       fetchStudentBalances();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Payment recording failed');
+    }
+  };
+
+  // ── Family Multi-Student Payment Handlers ──
+
+  const openFamilyPaymentModal = async (student) => {
+    setPayModalOpen(false);
+    try {
+      const { data: familyData } = await api.get(`/finance/students/${student._id}/family`);
+      const members = familyData.familyMembers || [student];
+      if (members.length < 2) {
+        toast.error('Please link at least one brother/sister to process family payment.');
+        return;
+      }
+
+      // Fetch pending balances for all family members
+      const detailedStudents = await Promise.all(
+        members.map(async (m) => {
+          try {
+            const { data } = await api.get('/finance/student-balances', {
+              params: {
+                academicYear: selectedYear,
+                classId: m.classId?._id || m.classId,
+                feeId: selectedFeeId,
+                billingYear: isMonthlyFee ? billingYear : undefined,
+                billingMonth: isMonthlyFee ? billingMonth : undefined,
+                search: m.studentId
+              }
+            });
+            const stBalance = data.students?.[0];
+            return {
+              _id: m._id,
+              studentId: m.studentId,
+              name: m.name,
+              className: m.classId?.className || '—',
+              pending: stBalance ? stBalance.pending : 0,
+              amountRequired: stBalance ? stBalance.amountRequired : 0,
+              isFree: stBalance?.isFree || false
+            };
+          } catch {
+            return { _id: m._id, studentId: m.studentId, name: m.name, className: '—', pending: 0, amountRequired: 0, isFree: false };
+          }
+        })
+      );
+
+      setFamilyPayStudents(detailedStudents);
+      const totalPend = detailedStudents.reduce((acc, s) => acc + s.pending, 0);
+
+      // Default equal proportional allocation
+      const initAlloc = {};
+      detailedStudents.forEach(s => {
+        initAlloc[s._id] = s.pending;
+      });
+      setFamilyPayAllocations(initAlloc);
+      setFamilyPayForm({
+        totalPaid: String(totalPend),
+        paymentMethod: 'Cash',
+        referenceNumber: '',
+        paymentDate: new Date().toISOString().split('T')[0],
+        note: `Family Payment for ${familyData.familyGroup?.familyName || 'Family Group'}`
+      });
+      setFamilyPayModalOpen(true);
+    } catch (err) {
+      toast.error('Failed to prepare family payment');
+    }
+  };
+
+  const handleDistributeFamilyPayment = (totalVal) => {
+    const totalAmount = Number(totalVal) || 0;
+    const totalPending = familyPayStudents.reduce((acc, s) => acc + s.pending, 0);
+
+    const newAlloc = {};
+    if (totalPending <= 0 || totalAmount <= 0) {
+      familyPayStudents.forEach(s => { newAlloc[s._id] = 0; });
+    } else {
+      let allocatedSoFar = 0;
+      familyPayStudents.forEach((s, idx) => {
+        if (idx === familyPayStudents.length - 1) {
+          // Last student gets remaining to avoid rounding error
+          newAlloc[s._id] = Math.max(0, Math.min(s.pending, Math.round((totalAmount - allocatedSoFar) * 100) / 100));
+        } else {
+          const prop = (s.pending / totalPending) * totalAmount;
+          const roundedProp = Math.min(s.pending, Math.round(prop * 100) / 100);
+          newAlloc[s._id] = roundedProp;
+          allocatedSoFar += roundedProp;
+        }
+      });
+    }
+    setFamilyPayAllocations(newAlloc);
+  };
+
+  const handleFamilyPaySubmit = async (e) => {
+    e.preventDefault();
+    if (!familyGroup) return;
+
+    const allocArray = Object.entries(familyPayAllocations)
+      .map(([studentId, amount]) => ({ studentId, allocatedAmount: Number(amount) || 0 }))
+      .filter(a => a.allocatedAmount > 0);
+
+    if (allocArray.length === 0) {
+      toast.error('Total allocated amount across family members must be greater than $0');
+      return;
+    }
+
+    try {
+      const payload = {
+        familyGroupId: familyGroup._id,
+        totalPaid: Number(familyPayForm.totalPaid),
+        allocations: allocArray,
+        academicYear: selectedYear,
+        feeId: selectedFeeId,
+        billingYear: isMonthlyFee ? billingYear : undefined,
+        billingMonth: isMonthlyFee ? billingMonth : undefined,
+        paymentMethod: familyPayForm.paymentMethod,
+        referenceNumber: familyPayForm.referenceNumber,
+        paymentDate: familyPayForm.paymentDate,
+        note: familyPayForm.note
+      };
+
+      const { data } = await api.post('/finance/payments/family', payload);
+      toast.success('Family payment recorded successfully!');
+      setFamilyPayModalOpen(false);
+      setActiveReceipt({
+        ...data.familyPayment,
+        isFamilyPayment: true,
+        receiptGroupNo: data.familyPayment.receiptGroupNo,
+        totalPaid: data.familyPayment.totalPaid,
+        allocations: data.familyPayment.allocations
+      });
+      fetchStudentBalances();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Family payment failed');
     }
   };
 
@@ -675,7 +962,6 @@ const Finance = () => {
 
   const selectedStudentsList = studentBalances.filter((s) => selectedStudentIds.includes(s._id));
 
-  // Compute live bulk action bar totals
   const bulkTotals = selectedStudentsList.reduce(
     (acc, s) => {
       acc.original += s.originalFee;
@@ -718,7 +1004,6 @@ const Finance = () => {
       const copy = [...prev];
       const item = { ...copy[idx], [field]: value };
 
-      // Recalculate item required & pending
       const orig = item.originalFee;
       const discVal = Number(field === 'discountValue' ? value : item.discountValue) || 0;
       const discType = field === 'discountType' ? value : item.discountType;
@@ -731,7 +1016,6 @@ const Finance = () => {
       const req = Math.max(0, orig - discAmt);
       const newPending = Math.max(0, req - item.previouslyPaid);
 
-      // Auto-cap paymentNow if it exceeds newPending
       let pmtNow = Number(item.paymentNow) || 0;
       if (pmtNow > newPending) pmtNow = newPending;
 
@@ -797,7 +1081,6 @@ const Finance = () => {
       await api.delete(`/finance/payments/${paymentId}`);
       toast.success('Payment transaction deleted and totals recalculated');
 
-      // Refresh modals & tables
       if (historyStudent) {
         openStudentHistory(historyStudent);
       }
@@ -830,7 +1113,7 @@ const Finance = () => {
             School Finance Management
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Complete Fee Structure, Live Student Balances, Discounts, and Real-Time Revenue Reporting
+            Complete Fee Structure, Persistent Student Discounts, Free Students, Brothers/Family Payments & Real-Time Reporting
           </p>
         </div>
 
@@ -858,11 +1141,10 @@ const Finance = () => {
         ))}
       </div>
 
-      {/* ── TOP SELECTORS (Available across Payments, Fee Structure, Balances) ── */}
+      {/* ── TOP SELECTORS ── */}
       {(activeTab === 'payments' || activeTab === 'balances' || activeTab === 'fees') && (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Academic Year Selector */}
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
                 Academic Year
@@ -880,7 +1162,6 @@ const Finance = () => {
               </select>
             </div>
 
-            {/* Class Selector */}
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
                 Class
@@ -898,7 +1179,6 @@ const Finance = () => {
               </select>
             </div>
 
-            {/* Fee Structure Selector (Only for Payments & Balances) */}
             {(activeTab === 'payments' || activeTab === 'balances') && (
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
@@ -918,7 +1198,6 @@ const Finance = () => {
               </div>
             )}
 
-            {/* Calendar Year & Month Selectors (Enabled ONLY for Monthly fees) */}
             {(activeTab === 'payments' || activeTab === 'balances') && (
               <div className="flex gap-2">
                 <div className="flex-1">
@@ -959,7 +1238,6 @@ const Finance = () => {
             )}
           </div>
 
-          {/* Secondary Filter Bar for Payments */}
           {(activeTab === 'payments' || activeTab === 'balances') && (
             <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-gray-100 dark:border-gray-700/60">
               <div className="flex-1 relative">
@@ -995,7 +1273,6 @@ const Finance = () => {
       {/* ── TAB 1: PAYMENTS (PAYMENT MANAGEMENT) ── */}
       {activeTab === 'payments' && (
         <div className="space-y-6">
-          {/* Live Finance Summary Header Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="card p-3 border-l-4 border-purple-600 bg-purple-50/40 dark:bg-purple-950/20">
               <p className="text-[11px] font-bold text-gray-500 uppercase">Students in Scope</p>
@@ -1023,7 +1300,6 @@ const Finance = () => {
             </div>
           </div>
 
-          {/* Bulk Action Bar */}
           {selectedStudentIds.length > 0 && (
             <div className="bg-purple-900 text-white p-4 rounded-xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
               <div className="flex flex-wrap items-center gap-4 text-xs">
@@ -1097,7 +1373,24 @@ const Finance = () => {
                             {student.studentId}
                           </td>
                           <td className="py-3 px-3 font-semibold text-gray-900 dark:text-white">
-                            {student.name}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{student.name}</span>
+                              {student.isFree && (
+                                <span className="bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-0.5">
+                                  <Shield className="w-2.5 h-2.5" /> FREE
+                                </span>
+                              )}
+                              {student.financeStatus === 'discounted' && (
+                                <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[9px] font-extrabold flex items-center gap-0.5">
+                                  <Star className="w-2.5 h-2.5" /> DISC
+                                </span>
+                              )}
+                              {student.familyGroupId && (
+                                <span className="bg-blue-100 text-blue-800 border border-blue-300 px-1.5 py-0.5 rounded text-[9px] font-extrabold flex items-center gap-0.5">
+                                  <Users className="w-2.5 h-2.5" /> BROTHERS
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-3">
                             <ParentPhoneDropdown
@@ -1127,12 +1420,19 @@ const Finance = () => {
                           </td>
                           <td className="py-3 px-3 text-center">
                             <div className="flex justify-center items-center gap-1.5">
-                              {student.pending > 0 ? (
+                              {student.pending > 0 && !student.isFree ? (
                                 <button
                                   onClick={() => openIndividualPayment(student)}
                                   className="btn-primary py-1 px-3 text-[11px] shadow-sm flex items-center gap-1"
                                 >
                                   <CreditCard className="w-3 h-3" /> Pay
+                                </button>
+                              ) : student.isFree ? (
+                                <button
+                                  onClick={() => openIndividualPayment(student)}
+                                  className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-1 px-2.5 rounded text-[10px] shadow-sm flex items-center gap-1"
+                                >
+                                  <Shield className="w-3 h-3" /> Profile/Pay
                                 </button>
                               ) : (
                                 <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
@@ -1264,7 +1564,21 @@ const Finance = () => {
                   <td className="py-3 px-4 font-mono font-semibold text-purple-700 dark:text-purple-300">
                     {student.studentId}
                   </td>
-                  <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{student.name}</td>
+                  <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span>{student.name}</span>
+                      {student.isFree && (
+                        <span className="bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-0.5">
+                          <Shield className="w-2.5 h-2.5" /> FREE
+                        </span>
+                      )}
+                      {student.financeStatus === 'discounted' && (
+                        <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[9px] font-extrabold flex items-center gap-0.5">
+                          <Star className="w-2.5 h-2.5" /> DISC
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="py-3 px-4">
                     <ParentPhoneDropdown
                       phone={student.parentPhone}
@@ -1558,136 +1872,510 @@ const Finance = () => {
         </form>
       </Modal>
 
-      {/* ── MODAL 2: INDIVIDUAL STUDENT PAYMENT ── */}
+      {/* ── MODAL 2: INDIVIDUAL STUDENT PAYMENT & PROFILE MODAL ── */}
       {paymentStudent && (
         <Modal
           isOpen={payModalOpen}
           onClose={() => setPayModalOpen(false)}
-          title={`Record Payment — ${paymentStudent.name} (${paymentStudent.studentId})`}
+          title={`Student Finance Profile & Payment — ${paymentStudent.name} (${paymentStudent.studentId})`}
           size="lg"
         >
-          <form onSubmit={handleIndividualPaySubmit} className="space-y-4 text-xs">
+          <div className="space-y-5 text-xs">
+            {/* Header info */}
             <div className="bg-purple-50 dark:bg-purple-950/40 p-3 rounded-lg border border-purple-200 dark:border-purple-800 grid grid-cols-2 gap-2 text-xs">
-              <div>Student: <span className="font-bold">{paymentStudent.name}</span></div>
+              <div>Student: <span className="font-bold">{paymentStudent.name} ({paymentStudent.studentId})</span></div>
               <div>Class: <span className="font-bold">{selectedYear} | {classes.find(c => c._id === selectedClassId)?.className}</span></div>
               <div>Fee Structure: <span className="font-bold text-purple-700 dark:text-purple-300">{currentFeeStructure?.name}</span></div>
               <div>Billing Period: <span className="font-bold">{isMonthlyFee ? `${billingMonth} ${billingYear}` : currentFeeStructure?.frequency}</span></div>
             </div>
 
-            {/* Discount Section */}
-            <div className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg space-y-3">
-              <span className="font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider block">Discount Logic</span>
-              <div className="grid grid-cols-3 gap-3">
+            {/* ── SECTION A: PERSISTENT STUDENT FINANCE PROFILE & DISCOUNT ── */}
+            <div className="p-3.5 border-2 border-purple-200 dark:border-purple-800 rounded-xl bg-purple-50/20 dark:bg-purple-950/10 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-purple-900 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1.5 text-xs">
+                  <Star className="w-4 h-4 text-purple-600" /> Persistent Student Finance Profile
+                </span>
+                {profileLoading && <LoadingSpinner />}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block mb-1 font-semibold">Discount Method</label>
+                  <label className="block mb-1 font-bold">Student Status</label>
                   <select
-                    value={payForm.discountType}
-                    onChange={(e) => setPayForm({ ...payForm, discountType: e.target.value })}
-                    className="input-field text-xs font-semibold"
+                    value={financeProfile.financeStatus}
+                    onChange={(e) => setFinanceProfile({ ...financeProfile, financeStatus: e.target.value })}
+                    className="input-field text-xs font-bold"
                   >
-                    <option value="Fixed">Fixed Amount ($)</option>
-                    <option value="Percentage">Percentage (%)</option>
+                    <option value="normal">Normal (Standard Fees)</option>
+                    <option value="discounted">Discounted Student</option>
+                    <option value="free">FREE Student ($0 Fees)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block mb-1 font-semibold">Discount Value</label>
+
+                {financeProfile.financeStatus === 'discounted' && (
+                  <>
+                    <div>
+                      <label className="block mb-1 font-bold">Discount Method</label>
+                      <select
+                        value={financeProfile.discountType}
+                        onChange={(e) => setFinanceProfile({ ...financeProfile, discountType: e.target.value })}
+                        className="input-field text-xs font-semibold"
+                      >
+                        <option value="Fixed">Fixed Amount ($)</option>
+                        <option value="Percentage">Percentage (%)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-bold">Persistent Discount Value</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={financeProfile.discountValue}
+                        onChange={(e) => setFinanceProfile({ ...financeProfile, discountValue: e.target.value })}
+                        className="input-field text-xs font-bold text-emerald-600"
+                        placeholder="e.g. 20"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {financeProfile.financeStatus === 'free' && (
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700 rounded-lg text-amber-900 dark:text-amber-200 font-medium text-xs flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Student is marked as FREE STUDENT. Required fee is automatically set to $0.</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-purple-100 dark:border-purple-800/60">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveFinanceProfile}
+                    className="bg-purple-700 hover:bg-purple-800 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Save Persistent Profile
+                  </button>
+                  {financeProfile.discountValue > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveDiscount}
+                      className="text-rose-600 hover:text-rose-700 font-bold text-xs underline px-2 py-1"
+                    >
+                      Remove Discount
+                    </button>
+                  )}
+                </div>
+
+                {financeProfile.discountHistory?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDiscountHistory(!showDiscountHistory)}
+                    className="text-purple-700 dark:text-purple-300 font-bold text-xs flex items-center gap-1 hover:underline"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Discount History ({financeProfile.discountHistory.length})
+                    {showDiscountHistory ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
+                )}
+              </div>
+
+              {/* Discount History Expandable Drawer */}
+              {showDiscountHistory && financeProfile.discountHistory?.length > 0 && (
+                <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700 max-h-40 overflow-y-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="text-gray-500 font-bold border-b text-left">
+                        <th className="py-1">Date</th>
+                        <th className="py-1">Action</th>
+                        <th className="py-1">Old Value</th>
+                        <th className="py-1">New Value</th>
+                        <th className="py-1">Changed By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {financeProfile.discountHistory.map((h, i) => (
+                        <tr key={i}>
+                          <td className="py-1">{new Date(h.changedAt).toLocaleDateString()}</td>
+                          <td className="py-1 font-semibold">{h.action}</td>
+                          <td className="py-1">{h.oldType} {h.oldValue}</td>
+                          <td className="py-1 font-bold text-emerald-600">{h.newType} {h.newValue}</td>
+                          <td className="py-1">{h.changedBy?.name || 'Admin'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ── SECTION B: FAMILY / BROTHERS LINKING ── */}
+            <div className="p-3.5 border border-blue-200 dark:border-blue-800 rounded-xl bg-blue-50/20 dark:bg-blue-950/10 space-y-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span className="font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider text-xs">
+                    Brothers & Family Group
+                  </span>
+                  {familyGroup && (
+                    <span className="bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-300">
+                      {familyGroup.familyName}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFamilySearchQuery('');
+                      setFamilySearchResults([]);
+                      setAddBrotherModalOpen(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Link Brother/Sister
+                  </button>
+
+                  {familyMembers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => openFamilyPaymentModal(paymentStudent)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-sm"
+                    >
+                      <CreditCard className="w-3.5 h-3.5" /> Pay for Family Together
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {familyMembers.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {familyMembers.map((m) => (
+                    <div
+                      key={m._id}
+                      className={`p-2 rounded-lg border flex items-center justify-between text-xs ${
+                        m._id === paymentStudent._id
+                          ? 'bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 font-bold'
+                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      <div>
+                        <span className="font-mono text-purple-700 dark:text-purple-300 mr-1.5">{m.studentId}</span>
+                        <span>{m.name}</span>
+                        <span className="text-[10px] text-gray-500 block">{m.classId?.className || '—'}</span>
+                      </div>
+                      {m._id !== paymentStudent._id && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnlinkBrother(m._id)}
+                          className="p-1 text-rose-600 hover:bg-rose-50 rounded"
+                          title="Unlink Brother"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-xs italic">No brothers or family members linked to this student yet.</p>
+              )}
+            </div>
+
+            {/* ── SECTION C: RECORD PAYMENT FORM ── */}
+            <form onSubmit={handleIndividualPaySubmit} className="space-y-4 pt-1">
+              <div className="font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider text-xs border-b pb-1">
+                Record Payment for Current Period
+              </div>
+
+              {/* Calculation Overview */}
+              <div className="grid grid-cols-3 gap-3 font-semibold text-center text-xs">
+                <div className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded">
+                  <span className="text-gray-500 block text-[10px]">Original Fee</span>
+                  <span className="text-sm font-bold">{formatCurrency(currentFeeStructure?.amount)}</span>
+                </div>
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 rounded border border-blue-200">
+                  <span className="text-blue-600 block text-[10px]">Amount Required</span>
+                  <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(calcIndividualModalDetails().req)}</span>
+                </div>
+                <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 rounded border border-rose-200">
+                  <span className="text-rose-600 block text-[10px]">Pending Balance</span>
+                  <span className="text-sm font-bold text-rose-700 dark:text-rose-300">{formatCurrency(calcIndividualModalDetails().pendingNow)}</span>
+                </div>
+              </div>
+
+              {financeProfile.financeStatus === 'free' && (
+                <div className="flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 rounded-lg text-amber-900 dark:text-amber-200">
                   <input
+                    type="checkbox"
+                    id="freeOverride"
+                    checked={payForm.allowFreeOverride}
+                    onChange={(e) => setPayForm({ ...payForm, allowFreeOverride: e.target.checked })}
+                    className="rounded text-amber-600 focus:ring-amber-500"
+                  />
+                  <label htmlFor="freeOverride" className="font-bold text-xs cursor-pointer">
+                    Override Free Student status (Allow charging payment for this transaction)
+                  </label>
+                </div>
+              )}
+
+              {/* Payment Fields */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold mb-1">Payment Now ($) *</label>
+                  <input
+                    required
                     type="number"
-                    min="0"
+                    min="0.01"
+                    max={calcIndividualModalDetails().pendingNow}
                     step="0.01"
-                    value={payForm.discountValue}
-                    onChange={(e) => setPayForm({ ...payForm, discountValue: e.target.value })}
-                    className="input-field text-xs font-bold text-emerald-600"
+                    disabled={financeProfile.financeStatus === 'free' && !payForm.allowFreeOverride}
+                    value={payForm.paymentNow}
+                    onChange={(e) => setPayForm({ ...payForm, paymentNow: e.target.value })}
+                    className="input-field text-sm font-extrabold text-purple-700 dark:text-purple-300 disabled:opacity-50"
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">Discount Amount</label>
-                  <div className="input-field text-xs bg-gray-100 dark:bg-gray-900 font-bold text-emerald-600">
-                    {formatCurrency(calcIndividualModalDetails().discAmt)}
-                  </div>
+                  <label className="block font-bold mb-1">Payment Method *</label>
+                  <select
+                    value={payForm.paymentMethod}
+                    onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}
+                    className="input-field text-xs font-semibold"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">Payment Date *</label>
+                  <input
+                    required
+                    type="date"
+                    value={payForm.paymentDate}
+                    onChange={(e) => setPayForm({ ...payForm, paymentDate: e.target.value })}
+                    className="input-field text-xs"
+                  />
                 </div>
               </div>
-            </div>
 
-            {/* Calculation Overview */}
-            <div className="grid grid-cols-3 gap-3 font-semibold text-center text-xs">
-              <div className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded">
-                <span className="text-gray-500 block text-[10px]">Original Fee</span>
-                <span className="text-sm font-bold">{formatCurrency(currentFeeStructure?.amount)}</span>
-              </div>
-              <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 rounded border border-blue-200">
-                <span className="text-blue-600 block text-[10px]">Amount Required</span>
-                <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(calcIndividualModalDetails().req)}</span>
-              </div>
-              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 rounded border border-rose-200">
-                <span className="text-rose-600 block text-[10px]">Pending Balance</span>
-                <span className="text-sm font-bold text-rose-700 dark:text-rose-300">{formatCurrency(calcIndividualModalDetails().pendingNow)}</span>
-              </div>
-            </div>
-
-            {/* Payment Fields */}
-            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block font-bold mb-1">Payment Now ($) *</label>
+                <label className="block font-bold mb-1">Reference Number / Transaction ID</label>
                 <input
-                  required
-                  type="number"
-                  min="0.01"
-                  max={calcIndividualModalDetails().pendingNow}
-                  step="0.01"
-                  value={payForm.paymentNow}
-                  onChange={(e) => setPayForm({ ...payForm, paymentNow: e.target.value })}
-                  className="input-field text-sm font-extrabold text-purple-700 dark:text-purple-300"
-                />
-              </div>
-              <div>
-                <label className="block font-bold mb-1">Payment Method *</label>
-                <select
-                  value={payForm.paymentMethod}
-                  onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}
-                  className="input-field text-xs font-semibold"
-                >
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block font-bold mb-1">Payment Date *</label>
-                <input
-                  required
-                  type="date"
-                  value={payForm.paymentDate}
-                  onChange={(e) => setPayForm({ ...payForm, paymentDate: e.target.value })}
+                  type="text"
+                  placeholder="e.g., TXN-99882211"
+                  value={payForm.referenceNumber}
+                  onChange={(e) => setPayForm({ ...payForm, referenceNumber: e.target.value })}
                   className="input-field text-xs"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block font-bold mb-1">Reference Number / Transaction ID</label>
-              <input
-                type="text"
-                placeholder="e.g., TXN-99882211"
-                value={payForm.referenceNumber}
-                onChange={(e) => setPayForm({ ...payForm, referenceNumber: e.target.value })}
-                className="input-field text-xs"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button type="submit" className="btn-primary flex-1 shadow-md">
-                Save & Generate Receipt
-              </button>
-              <button type="button" onClick={() => setPayModalOpen(false)} className="btn-secondary flex-1">
-                Cancel
-              </button>
-            </div>
-          </form>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={financeProfile.financeStatus === 'free' && !payForm.allowFreeOverride}
+                  className="btn-primary flex-1 shadow-md disabled:opacity-50"
+                >
+                  Save & Generate Receipt
+                </button>
+                <button type="button" onClick={() => setPayModalOpen(false)} className="btn-secondary flex-1">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </Modal>
       )}
 
-      {/* ── MODAL 3: BULK STUDENT PAYMENT MODAL ── */}
+      {/* ── MODAL 3: LINK BROTHER / SISTER SEARCH MODAL ── */}
+      <Modal
+        isOpen={addBrotherModalOpen}
+        onClose={() => setAddBrotherModalOpen(false)}
+        title={`Link Brother/Sister to ${paymentStudent?.name}`}
+        size="md"
+      >
+        <div className="space-y-4 text-xs">
+          <div>
+            <label className="block font-bold mb-1">Search Student by Name or Student ID</label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Type name or student ID..."
+                value={familySearchQuery}
+                onChange={(e) => handleSearchFamilyStudents(e.target.value)}
+                className="input-field pl-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800">
+            {familySearchLoading ? (
+              <div className="p-4 text-center"><LoadingSpinner /></div>
+            ) : familySearchResults.length > 0 ? (
+              familySearchResults.map((st) => (
+                <div key={st._id} className="p-2.5 flex items-center justify-between hover:bg-purple-50/50 dark:hover:bg-purple-950/20">
+                  <div>
+                    <span className="font-mono font-bold text-purple-700 dark:text-purple-300 mr-2">{st.studentId}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{st.name}</span>
+                    <span className="text-[10px] text-gray-500 block">{st.classId?.className || '—'}</span>
+                  </div>
+                  <button
+                    onClick={() => handleLinkBrother(st._id)}
+                    className="btn-primary py-1 px-3 text-[11px] flex items-center gap-1 shadow-sm"
+                  >
+                    <LinkIcon className="w-3 h-3" /> Link Brother
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-gray-400">
+                {familySearchQuery.trim().length >= 2 ? 'No matching unlinked students found.' : 'Type at least 2 characters to search...'}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── MODAL 4: FAMILY / BROTHERS MULTI-STUDENT PAYMENT MODAL ── */}
+      <Modal
+        isOpen={familyPayModalOpen}
+        onClose={() => setFamilyPayModalOpen(false)}
+        title={`Family Payment — ${familyGroup?.familyName || 'Brothers Group'}`}
+        size="lg"
+      >
+        <form onSubmit={handleFamilyPaySubmit} className="space-y-4 text-xs">
+          <div className="bg-purple-50 dark:bg-purple-950/40 p-3 rounded-lg border border-purple-200 dark:border-purple-800 flex justify-between items-center text-xs">
+            <div>
+              <span className="font-bold text-purple-900 dark:text-purple-300">Family Group:</span> {familyGroup?.familyName}
+            </div>
+            <div>
+              <span className="font-bold">Total Family Pending:</span>{' '}
+              <span className="font-extrabold text-rose-600 dark:text-rose-400">
+                {formatCurrency(familyPayStudents.reduce((acc, s) => acc + s.pending, 0))}
+              </span>
+            </div>
+          </div>
+
+          <div className="card p-0 border border-gray-200 dark:border-gray-700">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 font-bold uppercase">
+                  <th className="py-2.5 px-3 text-left">Student ID & Name</th>
+                  <th className="py-2.5 px-3 text-left">Class</th>
+                  <th className="py-2.5 px-3 text-right">Pending Balance</th>
+                  <th className="py-2.5 px-3 text-right">Allocated Payment ($)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {familyPayStudents.map((st) => (
+                  <tr key={st._id}>
+                    <td className="py-2 px-3 font-semibold">
+                      <span className="font-mono text-purple-700 dark:text-purple-300 mr-1">{st.studentId}</span> — {st.name}
+                      {st.isFree && <span className="ml-1 text-[9px] text-amber-600 font-bold">(FREE)</span>}
+                    </td>
+                    <td className="py-2 px-3 text-gray-500">{st.className}</td>
+                    <td className="py-2 px-3 text-right font-bold text-rose-600">{formatCurrency(st.pending)}</td>
+                    <td className="py-2 px-3 text-right">
+                      <input
+                        type="number"
+                        min="0"
+                        max={st.pending}
+                        step="0.01"
+                        value={familyPayAllocations[st._id] ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFamilyPayAllocations(prev => ({ ...prev, [st._id]: val }));
+                          // Auto update total
+                          const newAlloc = { ...familyPayAllocations, [st._id]: Number(val) || 0 };
+                          const newSum = Object.values(newAlloc).reduce((a, b) => Number(a) + Number(b), 0);
+                          setFamilyPayForm(prev => ({ ...prev, totalPaid: String(newSum) }));
+                        }}
+                        className="input-field py-1 text-right font-extrabold text-emerald-600 w-32 text-xs"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
+            <div>
+              <label className="block font-bold mb-1">Total Family Payment Amount ($) *</label>
+              <input
+                required
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={familyPayForm.totalPaid}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFamilyPayForm({ ...familyPayForm, totalPaid: val });
+                  handleDistributeFamilyPayment(val);
+                }}
+                className="input-field text-sm font-black text-purple-700 dark:text-purple-300"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => handleDistributeFamilyPayment(familyPayForm.totalPaid)}
+                className="btn-secondary w-full py-2 text-xs font-bold"
+              >
+                Auto-Distribute Proportionally
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block font-bold mb-1">Payment Method</label>
+              <select
+                value={familyPayForm.paymentMethod}
+                onChange={(e) => setFamilyPayForm({ ...familyPayForm, paymentMethod: e.target.value })}
+                className="input-field text-xs"
+              >
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold mb-1">Payment Date</label>
+              <input
+                type="date"
+                value={familyPayForm.paymentDate}
+                onChange={(e) => setFamilyPayForm({ ...familyPayForm, paymentDate: e.target.value })}
+                className="input-field text-xs"
+              />
+            </div>
+            <div>
+              <label className="block font-bold mb-1">Reference Number</label>
+              <input
+                type="text"
+                placeholder="TXN-FAMILY-100"
+                value={familyPayForm.referenceNumber}
+                onChange={(e) => setFamilyPayForm({ ...familyPayForm, referenceNumber: e.target.value })}
+                className="input-field text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="submit" className="btn-primary flex-1 shadow-md">
+              Process Family Payment & Generate Receipt
+            </button>
+            <button type="button" onClick={() => setFamilyPayModalOpen(false)} className="btn-secondary flex-1">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── MODAL 5: BULK STUDENT PAYMENT MODAL ── */}
       <Modal
         isOpen={bulkModalOpen}
         onClose={() => setBulkModalOpen(false)}
@@ -1792,7 +2480,7 @@ const Finance = () => {
         </form>
       </Modal>
 
-      {/* ── MODAL 4: STUDENT PAYMENT HISTORY MODAL ── */}
+      {/* ── MODAL 6: STUDENT PAYMENT HISTORY MODAL ── */}
       {historyStudent && (
         <Modal
           isOpen={historyModalOpen}
