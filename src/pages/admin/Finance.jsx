@@ -623,7 +623,34 @@ const Finance = () => {
     setProfileLoading(true);
     try {
       const { data } = await api.get(`/finance/student-profile/${studentId}`);
-      setFinanceProfile(extractProfile(data));
+      const prof = extractProfile(data);
+      setFinanceProfile(prof);
+
+      const isNormal = prof.financeStatus === 'normal' || Number(prof.discountValue) === 0;
+      const isFree = prof.financeStatus === 'free';
+      const effDiscVal = (isNormal || isFree) ? 0 : (Number(prof.discountValue) || 0);
+      const effDiscType = prof.discountType || 'Fixed';
+
+      const orig = currentFeeStructure?.amount || 0;
+      let discAmt = 0;
+      if (isFree) {
+        discAmt = orig;
+      } else if (effDiscType === 'Percentage') {
+        discAmt = Math.min(orig, (orig * effDiscVal) / 100);
+      } else {
+        discAmt = Math.min(orig, effDiscVal);
+      }
+
+      const reqNow = isFree ? 0 : Math.max(0, orig - discAmt);
+      const prevPaid = paymentStudent?.paid || 0;
+      const pendingNow = Math.max(0, reqNow - prevPaid);
+
+      setPayForm(prev => ({
+        ...prev,
+        discountType: effDiscType,
+        discountValue: effDiscVal,
+        paymentNow: pendingNow > 0 ? String(pendingNow) : ''
+      }));
     } catch (err) {
       console.error(err);
       setFinanceProfile({
@@ -633,6 +660,7 @@ const Finance = () => {
         notes: '',
         discountHistory: []
       });
+      setPayForm(prev => ({ ...prev, discountValue: 0 }));
     } finally {
       setProfileLoading(false);
     }
@@ -641,21 +669,40 @@ const Finance = () => {
   const handleSaveFinanceProfile = async () => {
     if (!paymentStudent) return;
     try {
+      const isNormal = financeProfile.financeStatus === 'normal' || Number(financeProfile.discountValue) === 0;
+      const sendDiscVal = isNormal ? 0 : (Number(financeProfile.discountValue) || 0);
+
       const { data } = await api.put(`/finance/student-profile/${paymentStudent._id}`, {
-        financeStatus: financeProfile.financeStatus,
+        financeStatus: isNormal ? 'normal' : financeProfile.financeStatus,
         discountType: financeProfile.discountType,
-        discountValue: Number(financeProfile.discountValue) || 0,
+        discountValue: sendDiscVal,
         notes: financeProfile.notes
       });
       toast.success(data.message || 'Student finance profile updated');
       const updatedProf = extractProfile(data);
       setFinanceProfile(updatedProf);
-      // Sync payForm
+
+      const isNorm = updatedProf.financeStatus === 'normal' || Number(updatedProf.discountValue) === 0;
+      const isFr = updatedProf.financeStatus === 'free';
+      const effVal = (isNorm || isFr) ? 0 : (Number(updatedProf.discountValue) || 0);
+
+      const orig = currentFeeStructure?.amount || 0;
+      let discAmt = 0;
+      if (isFr) discAmt = orig;
+      else if (updatedProf.discountType === 'Percentage') discAmt = Math.min(orig, (orig * effVal) / 100);
+      else discAmt = Math.min(orig, effVal);
+
+      const reqNow = isFr ? 0 : Math.max(0, orig - discAmt);
+      const prevPaid = paymentStudent?.paid || 0;
+      const pendingNow = Math.max(0, reqNow - prevPaid);
+
       setPayForm(prev => ({
         ...prev,
         discountType: updatedProf.discountType,
-        discountValue: updatedProf.discountValue
+        discountValue: effVal,
+        paymentNow: pendingNow > 0 ? String(pendingNow) : ''
       }));
+
       fetchStudentBalances();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save profile');
@@ -670,7 +717,18 @@ const Finance = () => {
       toast.success(data.message || 'Discount removed');
       const updatedProf = extractProfile(data);
       setFinanceProfile(updatedProf);
-      setPayForm(prev => ({ ...prev, discountValue: 0 }));
+
+      const orig = currentFeeStructure?.amount || 0;
+      const prevPaid = paymentStudent?.paid || 0;
+      const pendingNow = Math.max(0, orig - prevPaid);
+
+      setPayForm(prev => ({
+        ...prev,
+        discountType: 'Fixed',
+        discountValue: 0,
+        paymentNow: pendingNow > 0 ? String(pendingNow) : ''
+      }));
+
       fetchStudentBalances();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to remove discount');
@@ -795,7 +853,10 @@ const Finance = () => {
       return { req: 0, discAmt: currentFeeStructure.amount, pendingNow: 0 };
     }
     const orig = currentFeeStructure.amount;
-    const discVal = Number(payForm.discountValue) || 0;
+    let discVal = Number(payForm.discountValue) || 0;
+    if (financeProfile.financeStatus === 'normal') {
+      discVal = 0;
+    }
     let discAmt = 0;
     if (payForm.discountType === 'Percentage') {
       discAmt = Math.min(orig, (orig * discVal) / 100);
@@ -2001,7 +2062,34 @@ const Finance = () => {
                   <label className="block mb-1 font-bold">Student Status</label>
                   <select
                     value={financeProfile.financeStatus}
-                    onChange={(e) => setFinanceProfile({ ...financeProfile, financeStatus: e.target.value })}
+                    onChange={(e) => {
+                      const newStatus = e.target.value;
+                      const isNorm = newStatus === 'normal';
+                      const isFr = newStatus === 'free';
+                      const newDiscVal = isNorm ? 0 : (financeProfile.discountValue || 0);
+
+                      setFinanceProfile({
+                        ...financeProfile,
+                        financeStatus: newStatus,
+                        discountValue: newDiscVal,
+                      });
+
+                      const orig = currentFeeStructure?.amount || 0;
+                      let discAmt = 0;
+                      if (isFr) discAmt = orig;
+                      else if (financeProfile.discountType === 'Percentage') discAmt = Math.min(orig, (orig * newDiscVal) / 100);
+                      else discAmt = Math.min(orig, newDiscVal);
+
+                      const reqNow = isFr ? 0 : Math.max(0, orig - discAmt);
+                      const prevPaid = paymentStudent?.paid || 0;
+                      const pendingNow = Math.max(0, reqNow - prevPaid);
+
+                      setPayForm((prev) => ({
+                        ...prev,
+                        discountValue: newDiscVal,
+                        paymentNow: pendingNow > 0 ? String(pendingNow) : '',
+                      }));
+                    }}
                     className="input-field text-xs font-bold"
                   >
                     <option value="normal">Normal (Standard Fees)</option>
