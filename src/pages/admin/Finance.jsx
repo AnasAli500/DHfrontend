@@ -2093,7 +2093,7 @@ const Finance = () => {
                 </div>
               </div>
 
-              {familyMembers.length > 0 ? (
+              {familyMembers.length > 1 ? (
                 <div className="space-y-2">
                   <div className="card p-0 border border-blue-200 dark:border-blue-800/60 overflow-x-auto">
                     <table className="w-full text-xs">
