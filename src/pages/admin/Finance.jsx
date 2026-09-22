@@ -909,6 +909,51 @@ const Finance = () => {
     }
   };
 
+  const updateFamilyStudentDiscount = (stId, field, value) => {
+    setFamilyPayStudents((prev) => {
+      const updated = prev.map((st) => {
+        if (st._id !== stId) return st;
+
+        const copy = { ...st };
+        if (field === 'isFree') {
+          copy.isFree = Boolean(value);
+          copy.financeStatus = copy.isFree ? 'free' : (copy.discountValue > 0 ? 'discounted' : 'normal');
+        } else if (field === 'discountType') {
+          copy.discountType = value;
+        } else if (field === 'discountValue') {
+          copy.discountValue = Math.max(0, Number(value) || 0);
+          if (!copy.isFree) {
+            copy.financeStatus = copy.discountValue > 0 ? 'discounted' : 'normal';
+          }
+        }
+
+        const origFee = copy.originalFee || (currentFeeStructure?.amount || 0);
+        let discAmt = 0;
+        if (copy.isFree) {
+          discAmt = origFee;
+        } else if (copy.discountType === 'Percentage') {
+          discAmt = Math.min(origFee, (origFee * (copy.discountValue || 0)) / 100);
+        } else {
+          discAmt = Math.min(origFee, copy.discountValue || 0);
+        }
+
+        const req = copy.isFree ? 0 : Math.max(0, origFee - discAmt);
+        const prevPaid = copy.paid || 0;
+        const newPend = Math.max(0, req - prevPaid);
+
+        copy.discountAmount = discAmt;
+        copy.amountRequired = req;
+        copy.pending = newPend;
+        return copy;
+      });
+
+      const newTotalPending = updated.reduce((acc, s) => acc + s.pending, 0);
+      setFamilyPayForm((prevForm) => ({ ...prevForm, totalPaid: String(newTotalPending) }));
+      handleDistributeFamilyPayment(newTotalPending, updated);
+      return updated;
+    });
+  };
+
   const handleDistributeFamilyPayment = (totalVal, students = familyPayStudents) => {
     const totalAmount = Number(totalVal) || 0;
     let remainingPool = totalAmount;
@@ -940,6 +985,10 @@ const Finance = () => {
       academicYear: selectedYear,
       billingYear: isMonthlyFee ? billingYear : undefined,
       billingMonth: isMonthlyFee ? billingMonth : undefined,
+      discountType: st.discountType || 'Fixed',
+      discountValue: Number(st.discountValue) || 0,
+      isFree: !!st.isFree,
+      financeStatus: st.isFree ? 'free' : (st.discountValue > 0 ? 'discounted' : 'normal'),
       allocatedAmount: Number(familyPayAllocations[st._id]) || 0
     }));
 
@@ -2377,11 +2426,12 @@ const Finance = () => {
               <div className="card p-0 border border-gray-200 dark:border-gray-700 overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 font-bold uppercase">
+                    <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 font-bold uppercase text-[10px]">
                       <th className="py-2.5 px-3 text-left">Student</th>
                       <th className="py-2.5 px-3 text-left">Class</th>
+                      <th className="py-2.5 px-3 text-right">Original</th>
+                      <th className="py-2.5 px-3 text-center">Discount / Status</th>
                       <th className="py-2.5 px-3 text-right">Required</th>
-                      <th className="py-2.5 px-3 text-right">Discount</th>
                       <th className="py-2.5 px-3 text-right">Pending</th>
                       <th className="py-2.5 px-3 text-right">Allocated Paid ($)</th>
                     </tr>
@@ -2391,15 +2441,52 @@ const Finance = () => {
                       const allocatedNow = Number(familyPayAllocations[st._id]) || 0;
                       const remPending = Math.max(0, st.pending - allocatedNow);
                       return (
-                        <tr key={st._id}>
+                        <tr key={st._id} className="hover:bg-purple-50/30 dark:hover:bg-purple-950/20">
                           <td className="py-2.5 px-3 font-semibold">
-                            <span className="font-mono text-purple-700 dark:text-purple-300 mr-1">{st.studentId}</span> — {st.name}
-                            {st.isFree && <span className="ml-1 text-[9px] text-amber-600 font-bold">(FREE)</span>}
+                            <div>
+                              <span className="font-mono text-purple-700 dark:text-purple-300 mr-1">{st.studentId}</span> — {st.name}
+                            </div>
+                            <label className="flex items-center gap-1 cursor-pointer text-[10px] font-bold text-amber-700 dark:text-amber-300 mt-1">
+                              <input
+                                type="checkbox"
+                                checked={!!st.isFree}
+                                onChange={(e) => updateFamilyStudentDiscount(st._id, 'isFree', e.target.checked)}
+                                className="rounded text-amber-600 focus:ring-amber-500 w-3 h-3"
+                              />
+                              <span>FREE Student ($0)</span>
+                            </label>
                           </td>
                           <td className="py-2.5 px-3 text-gray-500">{st.className}</td>
-                          <td className="py-2.5 px-3 text-right">{formatCurrency(st.amountRequired)}</td>
-                          <td className="py-2.5 px-3 text-right text-emerald-600">
-                            {st.isFree ? 'FREE' : formatCurrency(st.discountAmount)}
+                          <td className="py-2.5 px-3 text-right font-medium">{formatCurrency(st.originalFee)}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            {st.isFree ? (
+                              <span className="font-extrabold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded text-[10px] border border-amber-300">
+                                100% FREE ($0)
+                              </span>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <select
+                                  value={st.discountType || 'Fixed'}
+                                  onChange={(e) => updateFamilyStudentDiscount(st._id, 'discountType', e.target.value)}
+                                  className="input-field py-0.5 px-1 text-[11px] font-bold w-16"
+                                >
+                                  <option value="Fixed">$</option>
+                                  <option value="Percentage">%</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0"
+                                  value={st.discountValue ?? 0}
+                                  onChange={(e) => updateFamilyStudentDiscount(st._id, 'discountValue', e.target.value)}
+                                  className="input-field py-0.5 px-1 text-center font-extrabold text-emerald-600 w-16 text-[11px]"
+                                />
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-gray-900 dark:text-white">
+                            {formatCurrency(st.amountRequired)}
                           </td>
                           <td className="py-2.5 px-3 text-right font-bold text-rose-600">{formatCurrency(st.pending)}</td>
                           <td className="py-2.5 px-3 text-right">
