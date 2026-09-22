@@ -1042,7 +1042,8 @@ const Finance = () => {
     const allocArray = familyPayStudents.map((st) => ({
       studentId: st._id,
       classId: st.classId?._id || st.classId,
-      feeId: selectedFeeId,
+      // Use each member's own class fee structure (returned by backend), fallback to selectedFeeId
+      feeId: st.feeId || selectedFeeId,
       academicYear: selectedYear,
       billingYear: isMonthlyFee ? billingYear : undefined,
       billingMonth: isMonthlyFee ? billingMonth : undefined,
