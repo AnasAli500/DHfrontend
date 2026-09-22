@@ -603,11 +603,22 @@ const Finance = () => {
 
   // ── Student Finance Profile & Family Handlers ──
 
+  const extractProfile = (data) => {
+    const prof = data?.profile || data || {};
+    return {
+      financeStatus: prof.financeStatus || 'normal',
+      discountType: prof.discountType || 'Fixed',
+      discountValue: prof.discountValue ?? 0,
+      notes: prof.notes || '',
+      discountHistory: Array.isArray(prof.discountHistory) ? prof.discountHistory : []
+    };
+  };
+
   const fetchStudentProfileData = async (studentId) => {
     setProfileLoading(true);
     try {
       const { data } = await api.get(`/finance/student-profile/${studentId}`);
-      setFinanceProfile(data);
+      setFinanceProfile(extractProfile(data));
     } catch (err) {
       console.error(err);
       setFinanceProfile({
@@ -632,12 +643,13 @@ const Finance = () => {
         notes: financeProfile.notes
       });
       toast.success(data.message || 'Student finance profile updated');
-      setFinanceProfile(data.profile);
+      const updatedProf = extractProfile(data);
+      setFinanceProfile(updatedProf);
       // Sync payForm
       setPayForm(prev => ({
         ...prev,
-        discountType: data.profile.discountType,
-        discountValue: data.profile.discountValue
+        discountType: updatedProf.discountType,
+        discountValue: updatedProf.discountValue
       }));
       fetchStudentBalances();
     } catch (err) {
@@ -651,7 +663,8 @@ const Finance = () => {
     try {
       const { data } = await api.delete(`/finance/student-profile/${paymentStudent._id}/discount`);
       toast.success(data.message || 'Discount removed');
-      setFinanceProfile(data.profile);
+      const updatedProf = extractProfile(data);
+      setFinanceProfile(updatedProf);
       setPayForm(prev => ({ ...prev, discountValue: 0 }));
       fetchStudentBalances();
     } catch (err) {
@@ -697,6 +710,8 @@ const Finance = () => {
     if (!paymentStudent) return;
     try {
       await api.post('/finance/family-groups/link', {
+        studentIdA: paymentStudent._id,
+        studentIdB: targetStudentId,
         studentId1: paymentStudent._id,
         studentId2: targetStudentId
       });
@@ -719,7 +734,16 @@ const Finance = () => {
       }
       fetchStudentBalances();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to unlink student');
+      try {
+        await api.delete(`/finance/students/${studentIdToUnlink}/unlink-family`);
+        toast.success('Student unlinked from family group');
+        if (paymentStudent) {
+          fetchStudentFamilyData(paymentStudent._id);
+        }
+        fetchStudentBalances();
+      } catch (err2) {
+        toast.error(err.response?.data?.message || err2.response?.data?.message || 'Failed to unlink student');
+      }
     }
   };
 
