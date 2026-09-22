@@ -509,7 +509,7 @@ const Finance = () => {
       name: 'Monthly Tuition Fee',
       feeType: 'Monthly Tuition Fee',
       amount: '',
-      classId: selectedClassId || (classes[0]?._id || ''),
+      classId: (selectedClassId && selectedClassId !== 'All') ? selectedClassId : (classes[0]?._id || ''),
       academicYear: selectedYear || (academicYears[0] || '2025/2026'),
       frequency: 'Monthly',
       dueDate: '',
@@ -832,7 +832,7 @@ const Finance = () => {
     try {
       const payload = {
         studentId: paymentStudent._id,
-        classId: selectedClassId,
+        classId: selectedClassId === 'All' ? (paymentStudent.classId?._id || paymentStudent.classId) : selectedClassId,
         feeId: selectedFeeId,
         academicYear: selectedYear,
         billingYear: isMonthlyFee ? billingYear : undefined,
@@ -1122,7 +1122,7 @@ const Finance = () => {
           paymentNow: Number(item.paymentNow) || 0,
         })),
         academicYear: selectedYear,
-        classId: selectedClassId,
+        classId: selectedClassId === 'All' ? undefined : selectedClassId,
         feeId: selectedFeeId,
         billingYear: isMonthlyFee ? billingYear : undefined,
         billingMonth: isMonthlyFee ? billingMonth : undefined,
@@ -1256,6 +1256,7 @@ const Finance = () => {
                 onChange={(e) => setSelectedClassId(e.target.value)}
                 className="input-field text-sm font-medium"
               >
+                <option value="All">All Classes</option>
                 {classes.map((cls) => (
                   <option key={cls._id} value={cls._id}>
                     {cls.className} ({cls.gradeLevel})
@@ -1460,6 +1461,11 @@ const Finance = () => {
                           <td className="py-3 px-3 font-semibold text-gray-900 dark:text-white">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span>{student.name}</span>
+                              {(selectedClassId === 'All' || !selectedClassId) && (student.classId?.className || typeof student.classId === 'string') && (
+                                <span className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                  {student.classId?.className || student.classId}
+                                </span>
+                              )}
                               {student.isFree && (
                                 <span className="bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-0.5">
                                   <Shield className="w-2.5 h-2.5" /> FREE
