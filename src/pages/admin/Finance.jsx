@@ -4,7 +4,7 @@ import {
   Plus, Pencil, Trash2, Printer, LayoutDashboard,
   CheckCircle2, Clock, Eye, Download, Search, Filter,
   ChevronRight, Calendar, UserCheck, CreditCard, RefreshCw, FileText,
-  Users, Link as LinkIcon, Shield, Star, UserX, ChevronDown, ChevronUp, Check
+  Users, Link as LinkIcon, Shield, Star, UserX, ChevronDown, ChevronUp, Check, ArrowRight
 } from 'lucide-react';
 import api from '../../api/axios';
 import Modal from '../../components/common/Modal';
@@ -120,19 +120,19 @@ const ReceiptModal = ({ payment, onClose }) => {
               </span>
             </div>
 
-            {payment.isFamilyPayment && payment.allocations && (
+            {payment.allocations && payment.allocations.length > 0 && (
               <div className="my-3 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-800 space-y-2">
                 <div className="font-bold text-xs text-purple-900 dark:text-purple-300 uppercase tracking-wide">Family Allocations</div>
                 {payment.allocations.map((alloc, i) => (
                   <div key={i} className="flex justify-between text-xs py-1 border-b border-purple-100/50 dark:border-purple-800/50 last:border-0">
-                    <span>{alloc.studentId?.studentId} - {alloc.studentId?.name}</span>
+                    <span>{alloc.studentId?.studentId || alloc.studentId} - {alloc.studentId?.name || 'Brother'}</span>
                     <span className="font-bold text-emerald-600">{formatCurrency(alloc.allocatedAmount)}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {!payment.isFamilyPayment && (
+            {!payment.isFamilyPayment && !payment.allocations && (
               <>
                 <div className="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-700/50">
                   <span className="text-gray-500 dark:text-gray-400">Original Fee</span>
@@ -278,6 +278,10 @@ const Finance = () => {
   const [familyGroup, setFamilyGroup] = useState(null);
   const [familyLoading, setFamilyLoading] = useState(false);
 
+  // Unlink Confirmation State
+  const [unlinkConfirmModalOpen, setUnlinkConfirmModalOpen] = useState(false);
+  const [unlinkConfirmStudent, setUnlinkConfirmStudent] = useState(null);
+
   // Add Brother Modal
   const [addBrotherModalOpen, setAddBrotherModalOpen] = useState(false);
   const [familySearchQuery, setFamilySearchQuery] = useState('');
@@ -286,6 +290,7 @@ const Finance = () => {
 
   // Family Payment Modal
   const [familyPayModalOpen, setFamilyPayModalOpen] = useState(false);
+  const [familyPayStep, setFamilyPayStep] = useState('input'); // 'input' | 'confirm'
   const [familyPayForm, setFamilyPayForm] = useState({
     totalPaid: '',
     paymentMethod: 'Cash',
@@ -675,9 +680,16 @@ const Finance = () => {
   const fetchStudentFamilyData = async (studentId) => {
     setFamilyLoading(true);
     try {
-      const { data } = await api.get(`/finance/students/${studentId}/family`);
+      const { data } = await api.get(`/finance/students/${studentId}/family`, {
+        params: {
+          feeId: selectedFeeId,
+          academicYear: selectedYear,
+          billingYear: isMonthlyFee ? billingYear : undefined,
+          billingMonth: isMonthlyFee ? billingMonth : undefined
+        }
+      });
       setFamilyGroup(data.familyGroup || null);
-      setFamilyMembers(data.familyMembers || []);
+      setFamilyMembers(data.members || []);
     } catch (err) {
       console.error(err);
       setFamilyGroup(null);
@@ -724,19 +736,28 @@ const Finance = () => {
     }
   };
 
-  const handleUnlinkBrother = async (studentIdToUnlink) => {
-    if (!confirm('Are you sure you want to remove this student from the family group?')) return;
+  const confirmUnlinkStudent = (brotherStudent) => {
+    setUnlinkConfirmStudent(brotherStudent);
+    setUnlinkConfirmModalOpen(true);
+  };
+
+  const executeUnlinkStudent = async () => {
+    if (!unlinkConfirmStudent) return;
     try {
-      await api.post('/finance/family-groups/unlink', { studentId: studentIdToUnlink });
-      toast.success('Student unlinked from family group');
+      await api.post('/finance/family-groups/unlink', { studentId: unlinkConfirmStudent._id });
+      toast.success(`${unlinkConfirmStudent.name} unlinked from family group`);
+      setUnlinkConfirmModalOpen(false);
+      setUnlinkConfirmStudent(null);
       if (paymentStudent) {
         fetchStudentFamilyData(paymentStudent._id);
       }
       fetchStudentBalances();
     } catch (err) {
       try {
-        await api.delete(`/finance/students/${studentIdToUnlink}/unlink-family`);
-        toast.success('Student unlinked from family group');
+        await api.delete(`/finance/students/${unlinkConfirmStudent._id}/unlink-family`);
+        toast.success(`${unlinkConfirmStudent.name} unlinked from family group`);
+        setUnlinkConfirmModalOpen(false);
+        setUnlinkConfirmStudent(null);
         if (paymentStudent) {
           fetchStudentFamilyData(paymentStudent._id);
         }
@@ -841,52 +862,40 @@ const Finance = () => {
   const openFamilyPaymentModal = async (student) => {
     setPayModalOpen(false);
     try {
-      const { data: familyData } = await api.get(`/finance/students/${student._id}/family`);
-      const members = familyData.familyMembers || [student];
-      if (members.length < 2) {
-        toast.error('Please link at least one brother/sister to process family payment.');
+      const { data: familyData } = await api.get(`/finance/students/${student._id}/family`, {
+        params: {
+          feeId: selectedFeeId,
+          academicYear: selectedYear,
+          billingYear: isMonthlyFee ? billingYear : undefined,
+          billingMonth: isMonthlyFee ? billingMonth : undefined
+        }
+      });
+      const members = familyData.members || [];
+      if (members.length === 0) {
+        toast.error('No active family members found for this student.');
         return;
       }
 
-      // Fetch pending balances for all family members
-      const detailedStudents = await Promise.all(
-        members.map(async (m) => {
-          try {
-            const { data } = await api.get('/finance/student-balances', {
-              params: {
-                academicYear: selectedYear,
-                classId: m.classId?._id || m.classId,
-                feeId: selectedFeeId,
-                billingYear: isMonthlyFee ? billingYear : undefined,
-                billingMonth: isMonthlyFee ? billingMonth : undefined,
-                search: m.studentId
-              }
-            });
-            const stBalance = data.students?.[0];
-            return {
-              _id: m._id,
-              studentId: m.studentId,
-              name: m.name,
-              className: m.classId?.className || '—',
-              pending: stBalance ? stBalance.pending : 0,
-              amountRequired: stBalance ? stBalance.amountRequired : 0,
-              isFree: stBalance?.isFree || false
-            };
-          } catch {
-            return { _id: m._id, studentId: m.studentId, name: m.name, className: '—', pending: 0, amountRequired: 0, isFree: false };
-          }
-        })
-      );
+      setFamilyPayStudents(members);
+      const totalPend = members.reduce((acc, s) => acc + s.pending, 0);
 
-      setFamilyPayStudents(detailedStudents);
-      const totalPend = detailedStudents.reduce((acc, s) => acc + s.pending, 0);
-
-      // Default equal proportional allocation
+      // Default sequential allocation
+      let remainingPool = totalPend;
       const initAlloc = {};
-      detailedStudents.forEach(s => {
-        initAlloc[s._id] = s.pending;
+      members.forEach((s) => {
+        if (s.isFree || s.pending <= 0) {
+          initAlloc[s._id] = 0;
+        } else {
+          const alloc = Math.min(remainingPool, s.pending);
+          const rounded = Math.round(alloc * 100) / 100;
+          initAlloc[s._id] = rounded;
+          remainingPool = Math.max(0, Math.round((remainingPool - rounded) * 100) / 100);
+        }
       });
+
       setFamilyPayAllocations(initAlloc);
+      setFamilyGroup(familyData.familyGroup);
+      setFamilyPayStep('input');
       setFamilyPayForm({
         totalPaid: String(totalPend),
         paymentMethod: 'Cash',
@@ -900,46 +909,49 @@ const Finance = () => {
     }
   };
 
-  const handleDistributeFamilyPayment = (totalVal) => {
+  const handleDistributeFamilyPayment = (totalVal, students = familyPayStudents) => {
     const totalAmount = Number(totalVal) || 0;
-    const totalPending = familyPayStudents.reduce((acc, s) => acc + s.pending, 0);
-
+    let remainingPool = totalAmount;
     const newAlloc = {};
-    if (totalPending <= 0 || totalAmount <= 0) {
-      familyPayStudents.forEach(s => { newAlloc[s._id] = 0; });
-    } else {
-      let allocatedSoFar = 0;
-      familyPayStudents.forEach((s, idx) => {
-        if (idx === familyPayStudents.length - 1) {
-          // Last student gets remaining to avoid rounding error
-          newAlloc[s._id] = Math.max(0, Math.min(s.pending, Math.round((totalAmount - allocatedSoFar) * 100) / 100));
-        } else {
-          const prop = (s.pending / totalPending) * totalAmount;
-          const roundedProp = Math.min(s.pending, Math.round(prop * 100) / 100);
-          newAlloc[s._id] = roundedProp;
-          allocatedSoFar += roundedProp;
-        }
-      });
-    }
+
+    students.forEach((s) => {
+      const sPending = s.pending || 0;
+      if (s.isFree || sPending <= 0) {
+        newAlloc[s._id] = 0;
+      } else {
+        const allocated = Math.min(remainingPool, sPending);
+        const rounded = Math.round(allocated * 100) / 100;
+        newAlloc[s._id] = rounded;
+        remainingPool = Math.max(0, Math.round((remainingPool - rounded) * 100) / 100);
+      }
+    });
+
     setFamilyPayAllocations(newAlloc);
   };
 
   const handleFamilyPaySubmit = async (e) => {
     e.preventDefault();
-    if (!familyGroup) return;
+    if (!familyGroup && familyPayStudents.length === 0) return;
 
-    const allocArray = Object.entries(familyPayAllocations)
-      .map(([studentId, amount]) => ({ studentId, allocatedAmount: Number(amount) || 0 }))
-      .filter(a => a.allocatedAmount > 0);
+    const allocArray = familyPayStudents.map((st) => ({
+      studentId: st._id,
+      classId: st.classId?._id || st.classId,
+      feeId: selectedFeeId,
+      academicYear: selectedYear,
+      billingYear: isMonthlyFee ? billingYear : undefined,
+      billingMonth: isMonthlyFee ? billingMonth : undefined,
+      allocatedAmount: Number(familyPayAllocations[st._id]) || 0
+    }));
 
-    if (allocArray.length === 0) {
-      toast.error('Total allocated amount across family members must be greater than $0');
+    const nonZeroAlloc = allocArray.filter(a => a.allocatedAmount > 0);
+    if (nonZeroAlloc.length === 0) {
+      toast.error('Total allocated amount across active family members must be greater than $0');
       return;
     }
 
     try {
       const payload = {
-        familyGroupId: familyGroup._id,
+        familyGroupId: familyGroup?._id || null,
         totalPaid: Number(familyPayForm.totalPaid),
         allocations: allocArray,
         academicYear: selectedYear,
@@ -1137,7 +1149,7 @@ const Finance = () => {
             School Finance Management
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Complete Fee Structure, Persistent Student Discounts, Free Students, Brothers/Family Payments & Real-Time Reporting
+            Complete Fee Structure, Persistent Student Discounts, Free Students, Automatic Brothers/Family Payments & Real-Time Reporting
           </p>
         </div>
 
@@ -1444,7 +1456,14 @@ const Finance = () => {
                           </td>
                           <td className="py-3 px-3 text-center">
                             <div className="flex justify-center items-center gap-1.5">
-                              {student.pending > 0 && !student.isFree ? (
+                              {student.familyGroupId ? (
+                                <button
+                                  onClick={() => openIndividualPayment(student)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2.5 rounded text-[11px] shadow-sm flex items-center gap-1"
+                                >
+                                  <Users className="w-3 h-3" /> Pay / Profile
+                                </button>
+                              ) : student.pending > 0 && !student.isFree ? (
                                 <button
                                   onClick={() => openIndividualPayment(student)}
                                   className="btn-primary py-1 px-3 text-[11px] shadow-sm flex items-center gap-1"
@@ -2034,22 +2053,32 @@ const Finance = () => {
               )}
             </div>
 
-            {/* ── SECTION B: FAMILY / BROTHERS LINKING ── */}
-            <div className="p-3.5 border border-blue-200 dark:border-blue-800 rounded-xl bg-blue-50/20 dark:bg-blue-950/10 space-y-3">
-              <div className="flex justify-between items-center">
+            {/* ── SECTION B: BROTHERS / FAMILY GROUP & AUTOMATIC FAMILY PAYMENT ── */}
+            <div className="p-3.5 border-2 border-blue-300 dark:border-blue-800 rounded-xl bg-blue-50/20 dark:bg-blue-950/10 space-y-3">
+              <div className="flex justify-between items-center flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
+                  <Users className="w-4.5 h-4.5 text-blue-600" />
                   <span className="font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider text-xs">
                     Brothers & Family Group
                   </span>
                   {familyGroup && (
-                    <span className="bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-300">
+                    <span className="bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-blue-300">
                       {familyGroup.familyName}
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {familyMembers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => openFamilyPaymentModal(paymentStudent)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 shadow-md transition-all uppercase tracking-wide"
+                    >
+                      <CreditCard className="w-4 h-4" /> Pay Family
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
@@ -2057,58 +2086,77 @@ const Finance = () => {
                       setFamilySearchResults([]);
                       setAddBrotherModalOpen(true);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Link Brother/Sister
+                    <Plus className="w-3.5 h-3.5" /> Add Brother / Family Student
                   </button>
-
-                  {familyMembers.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => openFamilyPaymentModal(paymentStudent)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-sm"
-                    >
-                      <CreditCard className="w-3.5 h-3.5" /> Pay for Family Together
-                    </button>
-                  )}
                 </div>
               </div>
 
               {familyMembers.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {familyMembers.map((m) => (
-                    <div
-                      key={m._id}
-                      className={`p-2 rounded-lg border flex items-center justify-between text-xs ${
-                        m._id === paymentStudent._id
-                          ? 'bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 font-bold'
-                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                      }`}
-                    >
-                      <div>
-                        <span className="font-mono text-purple-700 dark:text-purple-300 mr-1.5">{m.studentId}</span>
-                        <span>{m.name}</span>
-                        <span className="text-[10px] text-gray-500 block">{m.classId?.className || '—'}</span>
-                      </div>
-                      {m._id !== paymentStudent._id && (
-                        <button
-                          type="button"
-                          onClick={() => handleUnlinkBrother(m._id)}
-                          className="p-1 text-rose-600 hover:bg-rose-50 rounded"
-                          title="Unlink Brother"
-                        >
-                          <UserX className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <div className="card p-0 border border-blue-200 dark:border-blue-800/60 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-blue-100/70 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 font-bold uppercase text-[10px]">
+                          <th className="py-2 px-3 text-left">Student</th>
+                          <th className="py-2 px-3 text-left">Class</th>
+                          <th className="py-2 px-3 text-right">Required</th>
+                          <th className="py-2 px-3 text-right">Discount</th>
+                          <th className="py-2 px-3 text-right">Pending Balance</th>
+                          <th className="py-2 px-3 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-blue-100/50 dark:divide-blue-900/40">
+                        {familyMembers.map((m) => (
+                          <tr
+                            key={m._id}
+                            className={m.isSelf ? 'bg-blue-50/70 dark:bg-blue-900/20 font-semibold' : ''}
+                          >
+                            <td className="py-2 px-3">
+                              <span className="font-mono text-purple-700 dark:text-purple-300 mr-1.5">{m.studentId}</span>
+                              <span className="font-bold">{m.name}</span>
+                              {m.isSelf && <span className="ml-1.5 text-[9px] bg-blue-600 text-white font-black px-1.5 py-0.2 rounded">THIS STUDENT</span>}
+                            </td>
+                            <td className="py-2 px-3 text-gray-600 dark:text-gray-300">{m.className || '—'}</td>
+                            <td className="py-2 px-3 text-right font-medium">{formatCurrency(m.amountRequired)}</td>
+                            <td className="py-2 px-3 text-right text-emerald-600 font-medium">
+                              {m.isFree ? <span className="font-black text-amber-600">FREE</span> : formatCurrency(m.discountAmount)}
+                            </td>
+                            <td className="py-2 px-3 text-right font-bold text-rose-600 dark:text-rose-400">
+                              {formatCurrency(m.pending)}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              {!m.isSelf && (
+                                <button
+                                  type="button"
+                                  onClick={() => confirmUnlinkStudent(m)}
+                                  className="text-rose-600 hover:text-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1 rounded font-bold text-[11px] flex items-center gap-1 mx-auto"
+                                  title="Remove / Unlink Brother from Family"
+                                >
+                                  <UserX className="w-3.5 h-3.5" /> Remove / Unlink
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-between items-center px-2 text-xs font-bold text-blue-900 dark:text-blue-200">
+                    <span>Total Active Family Members: {familyMembers.length}</span>
+                    <span className="text-sm font-black text-purple-900 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/60 px-3 py-1 rounded-lg border border-purple-200">
+                      Total Family Pending: {formatCurrency(familyMembers.reduce((acc, s) => acc + s.pending, 0))}
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <p className="text-gray-400 text-xs italic">No brothers or family members linked to this student yet.</p>
               )}
             </div>
 
-            {/* ── SECTION C: RECORD PAYMENT FORM ── */}
+            {/* ── SECTION C: RECORD INDIVIDUAL PAYMENT FORM ── */}
             <form onSubmit={handleIndividualPaySubmit} className="space-y-4 pt-1">
               <div className="font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider text-xs border-b pb-1">
                 Record Payment for Current Period
@@ -2217,7 +2265,7 @@ const Finance = () => {
       <Modal
         isOpen={addBrotherModalOpen}
         onClose={() => setAddBrotherModalOpen(false)}
-        title={`Link Brother/Sister to ${paymentStudent?.name}`}
+        title={`Add Brother / Family Student to ${paymentStudent?.name}`}
         size="md"
       >
         <div className="space-y-4 text-xs">
@@ -2250,7 +2298,7 @@ const Finance = () => {
                     onClick={() => handleLinkBrother(st._id)}
                     className="btn-primary py-1 px-3 text-[11px] flex items-center gap-1 shadow-sm"
                   >
-                    <LinkIcon className="w-3 h-3" /> Link Brother
+                    <LinkIcon className="w-3 h-3" /> Add to Family
                   </button>
                 </div>
               ))
@@ -2263,143 +2311,279 @@ const Finance = () => {
         </div>
       </Modal>
 
-      {/* ── MODAL 4: FAMILY / BROTHERS MULTI-STUDENT PAYMENT MODAL ── */}
-      <Modal
-        isOpen={familyPayModalOpen}
-        onClose={() => setFamilyPayModalOpen(false)}
-        title={`Family Payment — ${familyGroup?.familyName || 'Brothers Group'}`}
-        size="lg"
-      >
-        <form onSubmit={handleFamilyPaySubmit} className="space-y-4 text-xs">
-          <div className="bg-purple-50 dark:bg-purple-950/40 p-3 rounded-lg border border-purple-200 dark:border-purple-800 flex justify-between items-center text-xs">
-            <div>
-              <span className="font-bold text-purple-900 dark:text-purple-300">Family Group:</span> {familyGroup?.familyName}
+      {/* ── MODAL 4: UNLINK BROTHER CONFIRMATION MODAL ── */}
+      {unlinkConfirmStudent && (
+        <Modal
+          isOpen={unlinkConfirmModalOpen}
+          onClose={() => setUnlinkConfirmModalOpen(false)}
+          title="Remove Student from Family Group"
+          size="md"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl space-y-2">
+              <p className="font-bold text-rose-900 dark:text-rose-200 text-sm">
+                Are you sure you want to remove <span className="underline">{unlinkConfirmStudent.name}</span> ({unlinkConfirmStudent.studentId}) from this family group?
+              </p>
+              <ul className="list-disc list-inside text-rose-700 dark:text-rose-300 space-y-1 text-[11px]">
+                <li>{unlinkConfirmStudent.name} will become an independent student.</li>
+                <li>Future family payments will not include {unlinkConfirmStudent.name}.</li>
+                <li>Existing payments, balance history, discounts, and free status will <strong>NOT</strong> be deleted.</li>
+              </ul>
             </div>
-            <div>
-              <span className="font-bold">Total Family Pending:</span>{' '}
-              <span className="font-extrabold text-rose-600 dark:text-rose-400">
-                {formatCurrency(familyPayStudents.reduce((acc, s) => acc + s.pending, 0))}
-              </span>
-            </div>
-          </div>
 
-          <div className="card p-0 border border-gray-200 dark:border-gray-700">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 font-bold uppercase">
-                  <th className="py-2.5 px-3 text-left">Student ID & Name</th>
-                  <th className="py-2.5 px-3 text-left">Class</th>
-                  <th className="py-2.5 px-3 text-right">Pending Balance</th>
-                  <th className="py-2.5 px-3 text-right">Allocated Payment ($)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {familyPayStudents.map((st) => (
-                  <tr key={st._id}>
-                    <td className="py-2 px-3 font-semibold">
-                      <span className="font-mono text-purple-700 dark:text-purple-300 mr-1">{st.studentId}</span> — {st.name}
-                      {st.isFree && <span className="ml-1 text-[9px] text-amber-600 font-bold">(FREE)</span>}
-                    </td>
-                    <td className="py-2 px-3 text-gray-500">{st.className}</td>
-                    <td className="py-2 px-3 text-right font-bold text-rose-600">{formatCurrency(st.pending)}</td>
-                    <td className="py-2 px-3 text-right">
-                      <input
-                        type="number"
-                        min="0"
-                        max={st.pending}
-                        step="0.01"
-                        value={familyPayAllocations[st._id] ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setFamilyPayAllocations(prev => ({ ...prev, [st._id]: val }));
-                          // Auto update total
-                          const newAlloc = { ...familyPayAllocations, [st._id]: Number(val) || 0 };
-                          const newSum = Object.values(newAlloc).reduce((a, b) => Number(a) + Number(b), 0);
-                          setFamilyPayForm(prev => ({ ...prev, totalPaid: String(newSum) }));
-                        }}
-                        className="input-field py-1 text-right font-extrabold text-emerald-600 w-32 text-xs"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
-            <div>
-              <label className="block font-bold mb-1">Total Family Payment Amount ($) *</label>
-              <input
-                required
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={familyPayForm.totalPaid}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFamilyPayForm({ ...familyPayForm, totalPaid: val });
-                  handleDistributeFamilyPayment(val);
-                }}
-                className="input-field text-sm font-black text-purple-700 dark:text-purple-300"
-              />
-            </div>
-            <div className="flex items-end">
+            <div className="flex gap-3 justify-end pt-2">
               <button
                 type="button"
-                onClick={() => handleDistributeFamilyPayment(familyPayForm.totalPaid)}
-                className="btn-secondary w-full py-2 text-xs font-bold"
+                onClick={() => setUnlinkConfirmModalOpen(false)}
+                className="btn-secondary"
               >
-                Auto-Distribute Proportionally
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeUnlinkStudent}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-4 py-2 rounded-lg text-xs shadow-md"
+              >
+                Remove / Unlink Student
               </button>
             </div>
           </div>
+        </Modal>
+      )}
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block font-bold mb-1">Payment Method</label>
-              <select
-                value={familyPayForm.paymentMethod}
-                onChange={(e) => setFamilyPayForm({ ...familyPayForm, paymentMethod: e.target.value })}
-                className="input-field text-xs"
-              >
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block font-bold mb-1">Payment Date</label>
-              <input
-                type="date"
-                value={familyPayForm.paymentDate}
-                onChange={(e) => setFamilyPayForm({ ...familyPayForm, paymentDate: e.target.value })}
-                className="input-field text-xs"
-              />
-            </div>
-            <div>
-              <label className="block font-bold mb-1">Reference Number</label>
-              <input
-                type="text"
-                placeholder="TXN-FAMILY-100"
-                value={familyPayForm.referenceNumber}
-                onChange={(e) => setFamilyPayForm({ ...familyPayForm, referenceNumber: e.target.value })}
-                className="input-field text-xs"
-              />
-            </div>
-          </div>
+      {/* ── MODAL 5: AUTOMATIC FAMILY MULTI-STUDENT PAYMENT MODAL ── */}
+      <Modal
+        isOpen={familyPayModalOpen}
+        onClose={() => setFamilyPayModalOpen(false)}
+        title={`Automatic Family Payment — ${familyGroup?.familyName || 'Family Group'}`}
+        size="lg"
+      >
+        <form onSubmit={handleFamilyPaySubmit} className="space-y-4 text-xs">
+          {familyPayStep === 'input' && (
+            <>
+              <div className="bg-purple-50 dark:bg-purple-950/40 p-3 rounded-lg border border-purple-200 dark:border-purple-800 flex justify-between items-center text-xs">
+                <div>
+                  <span className="font-bold text-purple-900 dark:text-purple-300">Family Group:</span> {familyGroup?.familyName}
+                </div>
+                <div>
+                  <span className="font-bold">Total Family Pending:</span>{' '}
+                  <span className="font-extrabold text-rose-600 dark:text-rose-400 text-sm">
+                    {formatCurrency(familyPayStudents.reduce((acc, s) => acc + s.pending, 0))}
+                  </span>
+                </div>
+              </div>
 
-          <div className="flex gap-3 pt-2">
-            <button type="submit" className="btn-primary flex-1 shadow-md">
-              Process Family Payment & Generate Receipt
-            </button>
-            <button type="button" onClick={() => setFamilyPayModalOpen(false)} className="btn-secondary flex-1">
-              Cancel
-            </button>
-          </div>
+              {/* Family Breakdown Table */}
+              <div className="card p-0 border border-gray-200 dark:border-gray-700 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 font-bold uppercase">
+                      <th className="py-2.5 px-3 text-left">Student</th>
+                      <th className="py-2.5 px-3 text-left">Class</th>
+                      <th className="py-2.5 px-3 text-right">Required</th>
+                      <th className="py-2.5 px-3 text-right">Discount</th>
+                      <th className="py-2.5 px-3 text-right">Pending</th>
+                      <th className="py-2.5 px-3 text-right">Allocated Paid ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {familyPayStudents.map((st) => {
+                      const allocatedNow = Number(familyPayAllocations[st._id]) || 0;
+                      const remPending = Math.max(0, st.pending - allocatedNow);
+                      return (
+                        <tr key={st._id}>
+                          <td className="py-2.5 px-3 font-semibold">
+                            <span className="font-mono text-purple-700 dark:text-purple-300 mr-1">{st.studentId}</span> — {st.name}
+                            {st.isFree && <span className="ml-1 text-[9px] text-amber-600 font-bold">(FREE)</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-gray-500">{st.className}</td>
+                          <td className="py-2.5 px-3 text-right">{formatCurrency(st.amountRequired)}</td>
+                          <td className="py-2.5 px-3 text-right text-emerald-600">
+                            {st.isFree ? 'FREE' : formatCurrency(st.discountAmount)}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-rose-600">{formatCurrency(st.pending)}</td>
+                          <td className="py-2.5 px-3 text-right">
+                            <input
+                              type="number"
+                              min="0"
+                              max={st.pending}
+                              step="0.01"
+                              value={familyPayAllocations[st._id] ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFamilyPayAllocations(prev => ({ ...prev, [st._id]: val }));
+                                const newAlloc = { ...familyPayAllocations, [st._id]: Number(val) || 0 };
+                                const newSum = Object.values(newAlloc).reduce((a, b) => Number(a) + Number(b), 0);
+                                setFamilyPayForm(prev => ({ ...prev, totalPaid: String(newSum) }));
+                              }}
+                              className="input-field py-1 text-right font-black text-emerald-600 w-28 text-xs"
+                            />
+                            {allocatedNow > 0 && (
+                              <span className="text-[10px] text-gray-400 block text-right font-medium">
+                                Rem: {formatCurrency(remPending)}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 bg-purple-50/50 dark:bg-purple-950/30 p-3 rounded-lg border border-purple-200">
+                <div>
+                  <label className="block font-bold mb-1">Paid Amount ($) *</label>
+                  <input
+                    required
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={familyPayForm.totalPaid}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFamilyPayForm({ ...familyPayForm, totalPaid: val });
+                      handleDistributeFamilyPayment(val);
+                    }}
+                    className="input-field text-base font-black text-purple-900 dark:text-purple-200"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => handleDistributeFamilyPayment(familyPayForm.totalPaid)}
+                    className="btn-secondary w-full py-2 text-xs font-bold"
+                  >
+                    Auto-Distribute Sequential Order
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold mb-1">Payment Method</label>
+                  <select
+                    value={familyPayForm.paymentMethod}
+                    onChange={(e) => setFamilyPayForm({ ...familyPayForm, paymentMethod: e.target.value })}
+                    className="input-field text-xs"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">Payment Date</label>
+                  <input
+                    type="date"
+                    value={familyPayForm.paymentDate}
+                    onChange={(e) => setFamilyPayForm({ ...familyPayForm, paymentDate: e.target.value })}
+                    className="input-field text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">Reference Number</label>
+                  <input
+                    type="text"
+                    placeholder="TXN-FAMILY-100"
+                    value={familyPayForm.referenceNumber}
+                    onChange={(e) => setFamilyPayForm({ ...familyPayForm, referenceNumber: e.target.value })}
+                    className="input-field text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const totalAlloc = Object.values(familyPayAllocations).reduce((a, b) => Number(a) + Number(b), 0);
+                    if (totalAlloc <= 0) {
+                      toast.error('Allocated payment amount must be greater than $0');
+                      return;
+                    }
+                    setFamilyPayStep('confirm');
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-4 rounded-lg flex-1 shadow-md text-xs flex items-center justify-center gap-2"
+                >
+                  Review Family Payment <ArrowRight className="w-4 h-4" />
+                </button>
+                <button type="button" onClick={() => setFamilyPayModalOpen(false)} className="btn-secondary flex-1">
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {familyPayStep === 'confirm' && (
+            <div className="space-y-4">
+              <div className="p-4 bg-purple-50 dark:bg-purple-950/40 border-2 border-purple-300 rounded-xl space-y-3">
+                <h3 className="font-extrabold text-sm text-purple-900 dark:text-purple-200 border-b pb-2 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Family Payment Confirmation Summary
+                </h3>
+
+                <div className="text-xs space-y-1">
+                  <p>Family Group: <span className="font-bold">{familyGroup?.familyName || 'Family Group'}</span></p>
+                  <p>Academic Year: <span className="font-bold">{selectedYear}</span></p>
+                  <p>Payment Method: <span className="font-bold">{familyPayForm.paymentMethod}</span></p>
+                </div>
+
+                <div className="card p-0 border border-purple-200 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-purple-100/60 text-purple-900 font-bold">
+                        <th className="py-2 px-3 text-left">Student</th>
+                        <th className="py-2 px-3 text-right">Allocated Payment</th>
+                        <th className="py-2 px-3 text-right">Remaining Pending</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-purple-100">
+                      {familyPayStudents.map((st) => {
+                        const alloc = Number(familyPayAllocations[st._id]) || 0;
+                        const rem = Math.max(0, st.pending - alloc);
+                        return (
+                          <tr key={st._id}>
+                            <td className="py-2 px-3 font-bold">
+                              {st.studentId} - {st.name} {st.isFree && '(FREE)'}
+                            </td>
+                            <td className="py-2 px-3 text-right font-extrabold text-emerald-600">
+                              {formatCurrency(alloc)}
+                            </td>
+                            <td className="py-2 px-3 text-right font-bold text-rose-600">
+                              {formatCurrency(rem)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center bg-purple-200 dark:bg-purple-900 p-2.5 rounded-lg font-black text-sm text-purple-950 dark:text-purple-100">
+                  <span>Total Family Payment</span>
+                  <span>{formatCurrency(familyPayForm.totalPaid)}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn-primary flex-1 shadow-lg py-2.5 font-black text-xs">
+                  Confirm Family Payment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFamilyPayStep('input')}
+                  className="btn-secondary flex-1"
+                >
+                  Back to Edit
+                </button>
+              </div>
+            </div>
+          )}
         </form>
       </Modal>
 
-      {/* ── MODAL 5: BULK STUDENT PAYMENT MODAL ── */}
+      {/* ── MODAL 6: BULK STUDENT PAYMENT MODAL ── */}
       <Modal
         isOpen={bulkModalOpen}
         onClose={() => setBulkModalOpen(false)}
@@ -2504,7 +2688,7 @@ const Finance = () => {
         </form>
       </Modal>
 
-      {/* ── MODAL 6: STUDENT PAYMENT HISTORY MODAL ── */}
+      {/* ── MODAL 7: STUDENT PAYMENT HISTORY MODAL ── */}
       {historyStudent && (
         <Modal
           isOpen={historyModalOpen}
