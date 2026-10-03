@@ -22,7 +22,7 @@ const Students = () => {
   const [search, setSearch] = useState('');
   const [filterGender, setFilterGender] = useState('');
   const [filterClassId, setFilterClassId] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Active');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -694,9 +694,9 @@ const Students = () => {
           <option value={500}>500</option>
           <option value="All">All</option>
         </select>
-        {(filterGender || filterClassId || filterStatus || limit !== 100) && (
+        {(filterGender || filterClassId || filterStatus !== 'Active' || limit !== 100) && (
           <button
-            onClick={() => { setFilterGender(''); setFilterClassId(''); setFilterStatus(''); setLimit(100); setPage(1); }}
+            onClick={() => { setFilterGender(''); setFilterClassId(''); setFilterStatus('Active'); setLimit(100); setPage(1); }}
             className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 transition"
           >
             ✕ {t('common.clearFilters')}
