@@ -80,7 +80,11 @@ const Students = () => {
         api.get('/students', { params }),
         api.get('/classes', { params: { limit: 1000 } }),
       ]);
-      setStudents(s.data.students || []);
+      const rawStudents = s.data.students || [];
+      const sortedStudents = [...rawStudents].sort((a, b) =>
+        (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true })
+      );
+      setStudents(sortedStudents);
       setTotal(s.data.total || 0);
       setPages(s.data.pages || 1);
       setClasses(c.data.classes || []);
