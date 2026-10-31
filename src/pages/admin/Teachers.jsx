@@ -20,12 +20,38 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 
-// Generate academic year options: current-1 to current+3
-const currentYear = new Date().getFullYear();
-const ACADEMIC_YEARS = Array.from({ length: 5 }, (_, i) => {
-  const y = currentYear - 1 + i;
-  return `${y}-${y + 1}`;
-});
+// Strict curriculum subjects as requested by user
+export const PRIMARY_SUBJECTS = [
+  'Somali',
+  'Islamic',
+  'Arabic',
+  'English',
+  'Xisaab',
+  'Saynis',
+  'CB',
+  'Technology',
+];
+
+export const SECONDARY_SUBJECTS = [
+  'Mathematics',
+  'English',
+  'Arabic',
+  'Somali',
+  'Islamic',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'Geography',
+  'History',
+  'Technology',
+  'Business',
+];
+
+export const ALL_ALLOWED_SUBJECTS = Array.from(
+  new Set([...SECONDARY_SUBJECTS, ...PRIMARY_SUBJECTS])
+).sort((a, b) => a.localeCompare(b));
+
+const DEFAULT_ACADEMIC_YEARS = ['2025-2026', '2026-2027', '2024-2025', '2027-2028'];
 
 const emptyForm = {
   name: '',
@@ -33,7 +59,7 @@ const emptyForm = {
   phone: '',
   email: '',
   address: '',
-  academicYear: '',
+  academicYear: '2025-2026',
   assignments: [{ subject: '', classes: [] }],
 };
 
@@ -64,8 +90,9 @@ const Teachers = () => {
   const [addingSubject, setAddingSubject] = useState(false);
   const [activeSubjectRowIndex, setActiveSubjectRowIndex] = useState(null);
 
-  // Per-row level filter: { [rowIndex]: 'All' | 'Primary' | 'Secondary' }
-  const [subjectLevel, setSubjectLevel] = useState('');
+  // Filter states: Academic Year (e.g. '2025-2026') and Subject Level ('Secondary' | 'Primary' | 'All')
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-2026');
+  const [subjectLevel, setSubjectLevel] = useState('Secondary');
 
   const fetchInitialData = async () => {
     try {
@@ -110,6 +137,13 @@ const Teachers = () => {
     return map;
   }, [availableClasses]);
 
+  // Extract distinct academic years from classes or default list
+  const academicYearsList = useMemo(() => {
+    const fromClasses = availableClasses.map((c) => c.academicYear).filter(Boolean);
+    const combined = Array.from(new Set([...DEFAULT_ACADEMIC_YEARS, ...fromClasses]));
+    return combined.sort((a, b) => b.localeCompare(a));
+  }, [availableClasses]);
+
   // Open Create Modal
   const handleOpenCreate = () => {
     setEditId(null);
@@ -119,9 +153,10 @@ const Teachers = () => {
       phone: '',
       email: '',
       address: '',
+      academicYear: selectedAcademicYear || '2025-2026',
       assignments: [{ subject: '', classes: [] }],
     });
-    setAcademicLevel('');
+    setSubjectLevel('Secondary');
     setModalOpen(true);
   };
 
@@ -514,19 +549,24 @@ const Teachers = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editId ? t('teachers.editTeacher') : t('teachers.addTeacher')}
-        size="sm"
+        size="2xl"
       >
-        <form onSubmit={handleSubmit} className="space-y-6 max-h-[80vh] overflow-y-auto px-1 pr-2">
+        <form onSubmit={handleSubmit} className="space-y-6 max-h-[82vh] overflow-y-auto px-1 pr-2">
           {/* Section 1: Teacher Personal Information */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-1.5 flex items-center gap-2">
-              <School className="w-4 h-4 text-primary-600" />
-              1. Teacher Information
+          <div className="space-y-3 bg-gray-50/60 dark:bg-gray-800/40 p-4 rounded-xl border border-gray-200 dark:border-gray-700/80">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <School className="w-4 h-4 text-primary-600" />
+                1. Teacher Information
+              </span>
+              <span className="text-xs font-normal text-gray-500">
+                Academic Year: <span className="font-semibold text-primary-600 dark:text-primary-400">{selectedAcademicYear || '2025-2026'}</span>
+              </span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   {t('students.fullName')} <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -539,7 +579,7 @@ const Teachers = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   {t('students.gender')} <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -554,7 +594,28 @@ const Teachers = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Academic Year
+                </label>
+                <select
+                  className="input-field"
+                  value={form.academicYear || selectedAcademicYear}
+                  onChange={(e) => {
+                    const yr = e.target.value;
+                    setForm({ ...form, academicYear: yr });
+                    setSelectedAcademicYear(yr);
+                  }}
+                >
+                  {academicYearsList.map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   {t('auth.email')}
                 </label>
                 <input
@@ -567,7 +628,7 @@ const Teachers = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   {t('common.phone')}
                 </label>
                 <input
@@ -577,80 +638,159 @@ const Teachers = () => {
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('common.address')}
-              </label>
-              <textarea
-                className="input-field"
-                placeholder={t('common.address')}
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                rows={2}
-              />
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  {t('common.address')}
+                </label>
+                <input
+                  className="input-field"
+                  placeholder="e.g. Mogadishu, Somalia"
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                />
+              </div>
             </div>
           </div>
 
           {/* Section 2: Subject & Class Assignments */}
-          <div className="space-y-3 pt-2">
-            <div className="border-b border-gray-100 dark:border-gray-800 pb-2 space-y-2">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-primary-600" />
-                2. Subject &amp; Class Assignments
-              </h3>
+          <div className="space-y-4 pt-1">
+            {/* Header with Academic Year & Level filter controls */}
+            <div className="bg-primary-50/40 dark:bg-primary-950/20 p-4 rounded-xl border border-primary-200/80 dark:border-primary-900/60 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-primary-200/60 dark:border-primary-900/40 pb-2.5">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-primary-600" />
+                    2. Subject &amp; Class Assignments
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Assign subjects and assign the specific classes this teacher will teach.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddAssignmentRow}
+                  className="btn-primary !text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 self-start sm:self-auto shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  {t('teachers.addAssignment') || '+ Add Another Subject'}
+                </button>
+              </div>
 
-              {/* Academic Year selector */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">
-                  Academic Year:
-                </span>
-                <div className="flex gap-1.5">
-                  {['Primary', 'Secondary'].map((lvl) => (
+              {/* Two Controls: 1. Academic Year, 2. Subject Level */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                {/* 1. Academic Year selector (2025-2026, 2026-2027, etc.) */}
+                <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                      📅 Step 1: Select Academic Year:
+                    </label>
+                    <span className="text-[11px] font-mono text-primary-600 dark:text-primary-400 font-semibold">
+                      {selectedAcademicYear}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {academicYearsList.map((yr) => {
+                      const isActive = selectedAcademicYear === yr;
+                      return (
+                        <button
+                          key={yr}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAcademicYear(yr);
+                            setForm((prev) => ({ ...prev, academicYear: yr }));
+                          }}
+                          className={`px-3 py-1 rounded-md text-xs font-bold border transition-all ${
+                            isActive
+                              ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                              : 'bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-primary-400'
+                          }`}
+                        >
+                          {yr}
+                        </button>
+                      );
+                    })}
                     <button
-                      key={lvl}
                       type="button"
-                      onClick={() => {
-                        setAcademicLevel(lvl);
-                        setForm((prev) => ({ ...prev, assignments: [{ subject: '', classes: [] }] }));
-                      }}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                        academicLevel === lvl
-                          ? lvl === 'Primary'
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                      onClick={() => setSelectedAcademicYear('All')}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
+                        selectedAcademicYear === 'All'
+                          ? 'bg-gray-800 text-white border-gray-800 dark:bg-gray-200 dark:text-gray-900'
+                          : 'bg-gray-50 dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700'
                       }`}
                     >
-                      {lvl}
+                      All Years
                     </button>
-                  ))}
+                  </div>
+                </div>
+
+                {/* 2. Subject Filter (Secondary vs Primary) */}
+                <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                      📚 Step 2: Filter Subjects by Level:
+                    </label>
+                    <span className="text-[11px] text-gray-500">
+                      {subjectLevel === 'Secondary'
+                        ? '12 Secondary Subjects'
+                        : subjectLevel === 'Primary'
+                        ? '8 Primary Subjects'
+                        : '15 Total Subjects'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSubjectLevel('Secondary')}
+                      className={`px-3 py-1 rounded-md text-xs font-bold border transition-all flex items-center gap-1 ${
+                        subjectLevel === 'Secondary'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                      }`}
+                    >
+                      <span>Secondary</span>
+                      <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">12</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSubjectLevel('Primary')}
+                      className={`px-3 py-1 rounded-md text-xs font-bold border transition-all flex items-center gap-1 ${
+                        subjectLevel === 'Primary'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                      }`}
+                    >
+                      <span>Primary</span>
+                      <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">8</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSubjectLevel('All')}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                        subjectLevel === 'All'
+                          ? 'bg-gray-700 text-white border-gray-700'
+                          : 'bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      All Subjects
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {!academicLevel ? (
-              <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
-                ☝️ Please select an Academic Year (Primary or Secondary) first.
-              </p>
-            ) : (
-              <>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAddAssignmentRow}
-                    className="btn-secondary !text-xs !py-1 flex items-center gap-1 text-primary-600 dark:text-primary-400 border-primary-200 hover:bg-primary-50 dark:hover:bg-primary-950/40"
-                  >
-                    <Plus className="w-3 h-3" />
-                    {t('teachers.addAssignment') || '+ Add Subject'}
-                  </button>
-                </div>
-
             {/* Assignment Rows */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               {form.assignments.map((assignmentRow, rowIndex) => {
-                // Find subjects already chosen in other rows to prevent duplicate selection
+                // Determine active subjects list based on subjectLevel
+                const activeSubjectOptions =
+                  subjectLevel === 'Primary'
+                    ? PRIMARY_SUBJECTS
+                    : subjectLevel === 'Secondary'
+                    ? SECONDARY_SUBJECTS
+                    : ALL_ALLOWED_SUBJECTS;
+
+                // Subjects chosen in other rows
                 const chosenInOtherRows = new Set(
                   form.assignments
                     .filter((_, idx) => idx !== rowIndex)
@@ -658,58 +798,63 @@ const Teachers = () => {
                     .filter(Boolean)
                 );
 
+                // Classes filtered by the active academic year
+                const filteredClasses =
+                  selectedAcademicYear === 'All'
+                    ? availableClasses
+                    : availableClasses.filter(
+                        (c) => !c.academicYear || c.academicYear === selectedAcademicYear
+                      );
+
                 return (
                   <div
                     key={rowIndex}
-                    className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700/80 bg-gray-50/70 dark:bg-gray-800/40 space-y-3 relative transition-all"
+                    className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/90 shadow-sm space-y-3 relative transition-all"
                   >
-                    {/* Row header: Subject selector & Remove */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                            <span className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 text-[11px] font-bold flex items-center justify-center">
-                              {rowIndex + 1}
-                            </span>
-                            {t('teachers.subject')}:
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveSubjectRowIndex(rowIndex);
-                              setNewSubjectModalOpen(true);
-                            }}
-                            className="text-[11px] text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium flex items-center gap-1 hover:underline"
-                          >
-                            <PlusCircle className="w-3 h-3" />
-                            {t('teachers.addNewSubject') || '+ New Subject'}
-                          </button>
-                        </div>
+                    {/* Header: Subject selector + Actions */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700/60 pb-3">
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 text-xs font-bold flex items-center justify-center shrink-0">
+                          #{rowIndex + 1}
+                        </span>
 
-                        {/* Subject dropdown — filtered by academicLevel selected above */}
-                        <select
-                          className="input-field !py-1.5 text-sm"
-                          value={assignmentRow.subject}
-                          onChange={(e) => handleSubjectChange(rowIndex, e.target.value)}
-                          required
-                        >
-                          <option value="">-- {t('teachers.selectSubject') || 'Select Subject'} --</option>
-                          {availableSubjects
-                            .filter((sub) => {
-                              if (!academicLevel) return true;
-                              return sub.level === academicLevel || sub.level === 'Both' || !sub.level;
-                            })
-                            .map((sub) => {
-                              const isChosenElsewhere = chosenInOtherRows.has(sub.name.toLowerCase());
+                        <div className="flex-1 max-w-sm">
+                          <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-0.5">
+                            {t('teachers.subject') || 'Subject'} ({subjectLevel}):
+                          </label>
+                          <select
+                            className="input-field !py-2 text-sm font-semibold"
+                            value={assignmentRow.subject}
+                            onChange={(e) => handleSubjectChange(rowIndex, e.target.value)}
+                            required
+                          >
+                            <option value="">-- Select {subjectLevel} Subject --</option>
+                            {activeSubjectOptions.map((subName) => {
+                              const isChosenElsewhere = chosenInOtherRows.has(subName.toLowerCase());
                               return (
-                                <option key={sub._id || sub.name} value={sub.name} disabled={isChosenElsewhere}>
-                                  {sub.name}{isChosenElsewhere ? ' (Already Assigned)' : ''}
+                                <option
+                                  key={subName}
+                                  value={subName}
+                                  disabled={isChosenElsewhere}
+                                >
+                                  {subName} {isChosenElsewhere ? '(Assigned in another row)' : ''}
                                 </option>
                               );
                             })}
-                        </select>
+                          </select>
+                        </div>
 
-
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveSubjectRowIndex(rowIndex);
+                            setNewSubjectModalOpen(true);
+                          }}
+                          className="mt-4 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium flex items-center gap-1 hover:underline shrink-0"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          {t('teachers.addNewSubject') || '+ New Subject'}
+                        </button>
                       </div>
 
                       {/* Remove Row button */}
@@ -718,29 +863,33 @@ const Teachers = () => {
                           type="button"
                           onClick={() => handleRemoveAssignmentRow(rowIndex)}
                           title="Remove this subject assignment"
-                          className="mt-6 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition self-end sm:self-auto"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </div>
 
-                    {/* Class Selector for this Subject */}
+                    {/* Class Selector Grid for this Subject */}
                     <div className="pt-1">
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                          {t('teachers.assignedClasses') || 'Assigned Classes for this Subject'}:
-                          <span className="ml-2 font-normal text-gray-500">
-                            ({assignmentRow.classes.length} {t('teachers.classesSelected') || 'classes selected'})
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                          <span>{t('teachers.assignedClasses') || 'Assign Classes for this Subject'}:</span>
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
+                            {assignmentRow.classes.length} classes selected
+                          </span>
+                          <span className="text-xs font-normal text-gray-400">
+                            (Academic Year: {selectedAcademicYear})
                           </span>
                         </label>
+
                         <div className="flex items-center gap-2 text-xs">
                           <button
                             type="button"
                             onClick={() => handleSelectAllClasses(rowIndex)}
-                            className="text-primary-600 dark:text-primary-400 hover:underline"
+                            className="text-primary-600 dark:text-primary-400 font-semibold hover:underline"
                           >
-                            {t('teachers.selectAllClasses') || 'Select All'}
+                            {t('teachers.selectAllClasses') || 'Select All'} ({filteredClasses.length})
                           </button>
                           <span className="text-gray-300">|</span>
                           <button
@@ -753,32 +902,42 @@ const Teachers = () => {
                         </div>
                       </div>
 
-                      {availableClasses.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">
-                          {t('teachers.noClassesFound') || 'No classes found in the database. Please create classes first.'}
-                        </p>
+                      {filteredClasses.length === 0 ? (
+                        <div className="text-center py-5 bg-gray-50 dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-gray-500 text-xs">
+                          No classes found for academic year <strong>{selectedAcademicYear}</strong>.
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAcademicYear('All')}
+                            className="ml-2 text-primary-600 hover:underline font-semibold"
+                          >
+                            Show all years
+                          </button>
+                        </div>
                       ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900">
-                          {availableClasses.map((cls) => {
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-48 overflow-y-auto p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-900/50">
+                          {filteredClasses.map((cls) => {
                             const isSelected = assignmentRow.classes.includes(cls._id.toString());
                             return (
                               <label
                                 key={cls._id}
-                                className={`flex items-center gap-2 p-1.5 rounded-md cursor-pointer border text-xs transition ${
+                                className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer border text-xs transition-all ${
                                   isSelected
-                                    ? 'bg-primary-50 dark:bg-primary-950/40 border-primary-300 dark:border-primary-700 text-primary-900 dark:text-primary-200 font-medium'
-                                    : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                    ? 'bg-primary-50 dark:bg-primary-950/50 border-primary-400 dark:border-primary-600 text-primary-900 dark:text-primary-100 font-semibold shadow-xs'
+                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300'
                                 }`}
                               >
                                 <input
                                   type="checkbox"
-                                  className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5"
+                                  className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4 shrink-0"
                                   checked={isSelected}
                                   onChange={() => handleToggleClass(rowIndex, cls._id)}
                                 />
-                                <span className="truncate" title={`${cls.className} (${cls.gradeLevel})`}>
-                                  {cls.className}
-                                </span>
+                                <div className="truncate">
+                                  <div className="truncate font-medium">{cls.className}</div>
+                                  <div className="text-[10px] text-gray-400 truncate">
+                                    {cls.gradeLevel || 'Class'} {cls.academicYear ? `• ${cls.academicYear}` : ''}
+                                  </div>
+                                </div>
                               </label>
                             );
                           })}
@@ -790,53 +949,60 @@ const Teachers = () => {
               })}
             </div>
 
-            {/* Subject-Class Preview */}
+            {/* Subject-Class Relationship Preview Table */}
             {form.assignments.some((a) => a.subject && a.classes.length > 0) && (
-              <div className="mt-1 p-2.5 rounded-lg border border-primary-200/70 dark:border-primary-900/50 bg-primary-50/40 dark:bg-primary-950/20">
-                <div className="text-xs font-semibold text-primary-800 dark:text-primary-300 mb-1.5 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-primary-600" />
-                  Assignments Summary
+              <div className="mt-2 p-3.5 rounded-xl border border-primary-200/80 dark:border-primary-900/60 bg-primary-50/30 dark:bg-primary-950/20 space-y-2">
+                <div className="text-xs font-bold text-primary-800 dark:text-primary-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-primary-600" />
+                  {t('teachers.assignmentsPreview') || 'Assignments Summary (Subject-to-Class Relationship)'}
                 </div>
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-primary-200 dark:border-primary-800 text-left text-gray-600 dark:text-gray-300">
-                      <th className="py-1 px-1.5 font-semibold">Subject</th>
-                      <th className="py-1 px-1.5 font-semibold">Classes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.assignments
-                      .filter((a) => a.subject && a.classes.length > 0)
-                      .map((a, idx) => (
-                        <tr key={idx} className="border-b border-primary-100 dark:border-primary-900/30">
-                          <td className="py-1 px-1.5 font-medium text-gray-800 dark:text-gray-200">{a.subject}</td>
-                          <td className="py-1 px-1.5 text-primary-700 dark:text-primary-300">
-                            {a.classes.map((cId) => classMap.get(cId)?.className || 'Class').join(', ')}
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                <div className="overflow-x-auto border border-primary-200/50 dark:border-primary-900/40 rounded-lg">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-primary-100/60 dark:bg-primary-900/40 text-left text-primary-900 dark:text-primary-200">
+                        <th className="py-2 px-3 font-bold">Subject</th>
+                        <th className="py-2 px-3 font-bold">Assigned Classes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-primary-100 dark:divide-primary-900/30 bg-white/70 dark:bg-gray-900/70">
+                      {form.assignments
+                        .filter((a) => a.subject && a.classes.length > 0)
+                        .map((a, idx) => {
+                          const classNames = a.classes
+                            .map((cId) => classMap.get(cId)?.className || 'Class')
+                            .join(', ');
+                          return (
+                            <tr key={idx} className="hover:bg-primary-50/50">
+                              <td className="py-2 px-3 font-bold text-gray-800 dark:text-gray-100">
+                                {a.subject}
+                              </td>
+                              <td className="py-2 px-3 text-primary-700 dark:text-primary-300 font-medium">
+                                {classNames}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            )}
-            </>
             )}
           </div>
 
           {/* Form Actions */}
-          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex gap-3 justify-end pt-3 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
               disabled={submitting}
               onClick={() => setModalOpen(false)}
-              className="btn-secondary"
+              className="btn-secondary !px-5"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary disabled:opacity-50 flex items-center gap-2"
+              className="btn-primary !px-6 disabled:opacity-50 flex items-center gap-2 font-semibold shadow-sm"
             >
               {submitting
                 ? t('common.loading')
@@ -854,6 +1020,7 @@ const Teachers = () => {
           isOpen={detailsModalOpen}
           onClose={() => setDetailsModalOpen(false)}
           title={t('teachers.teacherDetails') || 'Teacher Details & Subject Assignments'}
+          size="xl"
         >
           <div className="space-y-4">
             {/* Header / Info card */}
