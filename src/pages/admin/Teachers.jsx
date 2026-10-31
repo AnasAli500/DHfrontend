@@ -20,12 +20,20 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 
+// Generate academic year options: current-1 to current+3
+const currentYear = new Date().getFullYear();
+const ACADEMIC_YEARS = Array.from({ length: 5 }, (_, i) => {
+  const y = currentYear - 1 + i;
+  return `${y}-${y + 1}`;
+});
+
 const emptyForm = {
   name: '',
   gender: 'Male',
   phone: '',
   email: '',
   address: '',
+  academicYear: '',
   assignments: [{ subject: '', classes: [] }],
 };
 
@@ -57,7 +65,7 @@ const Teachers = () => {
   const [activeSubjectRowIndex, setActiveSubjectRowIndex] = useState(null);
 
   // Per-row level filter: { [rowIndex]: 'All' | 'Primary' | 'Secondary' }
-  const [academicLevel, setAcademicLevel] = useState('');
+  const [subjectLevel, setSubjectLevel] = useState('');
 
   const fetchInitialData = async () => {
     try {
