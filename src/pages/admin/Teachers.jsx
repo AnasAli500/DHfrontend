@@ -182,6 +182,7 @@ const Teachers = () => {
     }
 
     setForm({
+      teacherId: teacherItem.teacherId || '',
       name: teacherItem.name || '',
       gender: teacherItem.gender || 'Male',
       phone: teacherItem.phone || '',
@@ -351,6 +352,9 @@ const Teachers = () => {
       address: form.address.trim(),
       assignments: validAssignments,
     };
+    if (form.teacherId) {
+      payload.teacherId = form.teacherId;
+    }
 
     setSubmitting(true);
     try {
