@@ -20,6 +20,7 @@ const Teachers = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchTeachers = async () => {
     setLoading(true);
@@ -36,6 +37,8 @@ const Teachers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       if (editId) {
         await api.put(`/teachers/${editId}`, form);
@@ -48,6 +51,8 @@ const Teachers = () => {
       fetchTeachers();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Operation failed');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -118,8 +123,10 @@ const Teachers = () => {
           <input className="input-field" placeholder={t('common.phone')} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <textarea className="input-field" placeholder={t('common.address')} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} rows={2} />
           <div className="flex gap-3 justify-end">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">{t('common.cancel')}</button>
-            <button type="submit" className="btn-primary">{editId ? t('common.update') : t('common.create')}</button>
+            <button type="button" disabled={submitting} onClick={() => setModalOpen(false)} className="btn-secondary">{t('common.cancel')}</button>
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+              {submitting ? t('common.loading') : (editId ? t('common.update') : t('common.create'))}
+            </button>
           </div>
         </form>
       </Modal>
