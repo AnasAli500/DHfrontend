@@ -52,8 +52,12 @@ const Teachers = () => {
   // Add new subject modal states
   const [newSubjectModalOpen, setNewSubjectModalOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState('');
+  const [newSubjectLevel, setNewSubjectLevel] = useState('Both');
   const [addingSubject, setAddingSubject] = useState(false);
   const [activeSubjectRowIndex, setActiveSubjectRowIndex] = useState(null);
+
+  // Per-row level filter: { [rowIndex]: 'All' | 'Primary' | 'Secondary' }
+  const [rowLevelFilter, setRowLevelFilter] = useState({});
 
   const fetchInitialData = async () => {
     try {
@@ -225,7 +229,10 @@ const Teachers = () => {
     if (!newSubjectName.trim()) return;
     setAddingSubject(true);
     try {
-      const { data } = await api.post('/subjects', { name: newSubjectName.trim() });
+      const { data } = await api.post('/subjects', {
+        name: newSubjectName.trim(),
+        level: newSubjectLevel,
+      });
       toast.success(t('teachers.subjectAdded') || 'Subject added successfully');
       setAvailableSubjects((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
 
@@ -234,6 +241,7 @@ const Teachers = () => {
         handleSubjectChange(activeSubjectRowIndex, data.name);
       }
       setNewSubjectName('');
+      setNewSubjectLevel('Both');
       setNewSubjectModalOpen(false);
       setActiveSubjectRowIndex(null);
     } catch (err) {
@@ -242,6 +250,7 @@ const Teachers = () => {
       setAddingSubject(false);
     }
   };
+
 
   // Form Validation & Submit
   const handleSubmit = async (e) => {
@@ -635,6 +644,33 @@ const Teachers = () => {
                           </button>
                         </div>
 
+                        {/* Level filter pills */}
+                        <div className="flex items-center gap-1 mb-1.5">
+                          {['All', 'Secondary', 'Primary'].map((lvl) => {
+                            const active = (rowLevelFilter[rowIndex] || 'All') === lvl;
+                            return (
+                              <button
+                                key={lvl}
+                                type="button"
+                                onClick={() =>
+                                  setRowLevelFilter((prev) => ({ ...prev, [rowIndex]: lvl }))
+                                }
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all ${
+                                  active
+                                    ? lvl === 'Secondary'
+                                      ? 'bg-indigo-600 text-white border-indigo-600'
+                                      : lvl === 'Primary'
+                                      ? 'bg-emerald-600 text-white border-emerald-600'
+                                      : 'bg-primary-600 text-white border-primary-600'
+                                    : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                                }`}
+                              >
+                                {lvl}
+                              </button>
+                            );
+                          })}
+                        </div>
+
                         <select
                           className="input-field !py-1.5 text-sm"
                           value={assignmentRow.subject}
@@ -642,21 +678,28 @@ const Teachers = () => {
                           required
                         >
                           <option value="">
-                            -- {t('teachers.selectSubject') || 'Select Subject from Database'} --
+                            -- {t('teachers.selectSubject') || 'Select Subject'} --
                           </option>
-                          {availableSubjects.map((sub) => {
-                            const isChosenElsewhere = chosenInOtherRows.has(sub.name.toLowerCase());
-                            return (
-                              <option
-                                key={sub._id || sub.name}
-                                value={sub.name}
-                                disabled={isChosenElsewhere}
-                              >
-                                {sub.name} {isChosenElsewhere ? '(Already Assigned)' : ''}
-                              </option>
-                            );
-                          })}
+                          {availableSubjects
+                            .filter((sub) => {
+                              const lvl = rowLevelFilter[rowIndex] || 'All';
+                              if (lvl === 'All') return true;
+                              return sub.level === lvl || sub.level === 'Both' || !sub.level;
+                            })
+                            .map((sub) => {
+                              const isChosenElsewhere = chosenInOtherRows.has(sub.name.toLowerCase());
+                              return (
+                                <option
+                                  key={sub._id || sub.name}
+                                  value={sub.name}
+                                  disabled={isChosenElsewhere}
+                                >
+                                  {sub.name} {isChosenElsewhere ? '(Already Assigned)' : ''}
+                                </option>
+                              );
+                            })}
                         </select>
+
                       </div>
 
                       {/* Remove Row button */}
@@ -906,12 +949,12 @@ const Teachers = () => {
         </Modal>
       )}
 
-      {/* Add New Subject Modal */}
       <Modal
         isOpen={newSubjectModalOpen}
         onClose={() => {
           setNewSubjectModalOpen(false);
           setNewSubjectName('');
+          setNewSubjectLevel('Both');
           setActiveSubjectRowIndex(null);
         }}
         title={t('teachers.addNewSubject') || 'Add New Subject'}
@@ -929,6 +972,37 @@ const Teachers = () => {
               required
               autoFocus
             />
+          </div>
+
+          {/* Level selector */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Academic Level
+            </label>
+            <div className="flex gap-2">
+              {[
+                { val: 'Secondary', label: 'Secondary', color: 'indigo' },
+                { val: 'Primary',   label: 'Primary',   color: 'emerald' },
+                { val: 'Both',      label: 'Both',      color: 'gray' },
+              ].map(({ val, label, color }) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setNewSubjectLevel(val)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                    newSubjectLevel === val
+                      ? color === 'indigo'
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : color === 'emerald'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-gray-600 text-white border-gray-600'
+                      : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
