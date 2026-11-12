@@ -59,6 +59,8 @@ const Exams = () => {
   const [exams, setExams] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState('All');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sheetLoading, setSheetLoading] = useState(false);
@@ -145,16 +147,17 @@ const Exams = () => {
   const fetchExams = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, limit: 20 };
+      const params = { page, limit };
       if (filterClass) params.classId = filterClass;
       if (filterPeriod) params.periodId = filterPeriod;
       const { data } = await api.get('/exams', { params });
-      setExams(data.exams);
-      setPages(data.pages);
+      setExams(data.exams || []);
+      setTotal(data.total ?? (data.exams || []).length);
+      setPages(data.pages || 1);
     } finally {
       setLoading(false);
     }
-  }, [page, filterClass, filterPeriod]);
+  }, [page, limit, filterClass, filterPeriod]);
 
   const fetchTeachersForClass = useCallback(async (classId) => {
     if (!classId) { setTeachers([]); return; }
@@ -934,6 +937,20 @@ const Exams = () => {
                 <option value="">All Subjects</option>
                 {allPeriods.map((p) => <option key={p._id} value={p._id}>{p.subject}</option>)}
               </select>
+              <select
+                className="input-field !w-auto font-medium"
+                value={limit}
+                onChange={(e) => {
+                  setLimit(e.target.value);
+                  setPage(1);
+                }}
+                title="Records per page"
+              >
+                <option value="All">All Records (1 Page)</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
             </div>
           </div>
 
@@ -993,7 +1010,15 @@ const Exams = () => {
               </table>
             </div>
           )}
-          <Pagination page={page} pages={pages} onChange={setPage} />
+          <Pagination
+            page={page}
+            pages={pages}
+            onPageChange={setPage}
+            total={total}
+            limit={limit}
+            showingFrom={total > 0 ? (page - 1) * (limit === 'All' ? total : Number(limit)) + 1 : 0}
+            showingTo={total > 0 ? (limit === 'All' ? total : Math.min(page * Number(limit), total)) : 0}
+          />
         </div>
       )}
 

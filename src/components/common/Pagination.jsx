@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Pagination = ({ page, pages, onPageChange, total, limit, showingFrom, showingTo }) => {
+const Pagination = ({ page, pages, onPageChange, onChange, total, limit, showingFrom, showingTo }) => {
+  const handlePageChange = onPageChange || onChange;
   const isAll = limit === 'All' || limit === 'all' || Number(limit) === 0;
 
   // Generate numeric page buttons
@@ -27,14 +28,14 @@ const Pagination = ({ page, pages, onPageChange, total, limit, showingFrom, show
         </p>
         <div className="flex gap-2">
           <button
-            onClick={() => onPageChange(page - 1)}
+            onClick={() => handlePageChange && handlePageChange(page - 1)}
             disabled={page <= 1}
             className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
-            onClick={() => onPageChange(page + 1)}
+            onClick={() => handlePageChange && handlePageChange(page + 1)}
             disabled={page >= pages}
             className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
@@ -57,7 +58,7 @@ const Pagination = ({ page, pages, onPageChange, total, limit, showingFrom, show
       {!isAll && pages > 1 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
-            onClick={() => onPageChange(page - 1)}
+            onClick={() => handlePageChange && handlePageChange(page - 1)}
             disabled={page <= 1}
             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition"
           >
@@ -66,7 +67,7 @@ const Pagination = ({ page, pages, onPageChange, total, limit, showingFrom, show
           {pageNumbers.map((p) => (
             <button
               key={p}
-              onClick={() => onPageChange(p)}
+              onClick={() => handlePageChange && handlePageChange(p)}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
                 p === page
                   ? 'bg-primary-600 text-white border-primary-600 font-bold'
@@ -77,7 +78,7 @@ const Pagination = ({ page, pages, onPageChange, total, limit, showingFrom, show
             </button>
           ))}
           <button
-            onClick={() => onPageChange(page + 1)}
+            onClick={() => handlePageChange && handlePageChange(page + 1)}
             disabled={page >= pages}
             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition"
           >
