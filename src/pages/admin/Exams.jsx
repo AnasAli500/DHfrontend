@@ -366,9 +366,34 @@ const Exams = () => {
           const grade = calculateGrade(percentage);
           return { ...s, marks: numMarks, grade, percentage };
         }
+        if (field === 'attendance') {
+          if ((value === 'Absent' || value === 'Excused') && (s.marks === '' || s.marks === undefined || s.marks === null)) {
+            const percentage = 0;
+            const grade = calculateGrade(0);
+            return { ...s, attendance: value, marks: 0, grade, percentage };
+          }
+          return { ...s, attendance: value };
+        }
         return { ...s, [field]: value };
       })
     );
+  };
+
+  const fillEmptyMarksWithZero = () => {
+    if (!examForm.totalMarks) {
+      return toast.error('Please select Exam Season and Exam Type first.');
+    }
+    setSheetStudents((prev) =>
+      prev.map((s) => {
+        if (s.marks === '' || s.marks === null || s.marks === undefined) {
+          const percentage = 0;
+          const grade = calculateGrade(0);
+          return { ...s, marks: 0, grade, percentage };
+        }
+        return s;
+      })
+    );
+    toast.success('All empty student marks set to 0');
   };
 
   const handleSaveBulk = async (isUpdate = false) => {
@@ -376,8 +401,27 @@ const Exams = () => {
     if (!classId || !teacherId || !periodId || !examSeasonId || !examStructureId || !examName || !examDate || !totalMarks) {
       return toast.error('Please fill in all exam details before saving.');
     }
-    const records = sheetStudents.filter((s) => s.marks !== '' && s.marks !== null && s.marks !== undefined);
+
+    // Auto-fill 0 marks for Absent / Excused students if empty
+    const preparedStudents = sheetStudents.map((s) => {
+      const hasMarks = s.marks !== '' && s.marks !== null && s.marks !== undefined;
+      const isAbsentOrExcused = s.attendance === 'Absent' || s.attendance === 'Excused';
+      if (!hasMarks && isAbsentOrExcused) {
+        return { ...s, marks: 0 };
+      }
+      return s;
+    });
+
+    const records = preparedStudents.filter((s) => s.marks !== '' && s.marks !== null && s.marks !== undefined);
     if (!records.length) return toast.error('Enter marks for at least one student.');
+
+    const emptyCount = preparedStudents.length - records.length;
+    if (emptyCount > 0) {
+      toast(`${emptyCount} student(s) with empty marks were skipped. Enter marks or click "Set Empty to 0" to save all students.`, {
+        icon: 'ℹ️',
+        duration: 5000,
+      });
+    }
 
     setSaving(true);
     try {
@@ -735,6 +779,14 @@ const Exams = () => {
                   )}
                   <button
                     type="button"
+                    onClick={fillEmptyMarksWithZero}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900 rounded-lg transition-colors border border-amber-300 dark:border-amber-700 shadow-sm"
+                    title="Fill all empty student marks with 0"
+                  >
+                    Set Empty to 0
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleOpenExamImport}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900 rounded-lg transition-colors border border-purple-300 dark:border-purple-700 shadow-sm"
                   >
@@ -775,7 +827,7 @@ const Exams = () => {
                               <td className="py-2.5 px-3 font-medium">{s.name}</td>
                               <td className="py-2.5 px-3">
                                 <input type="number" min="0" max={examForm.totalMarks} className="input-field w-20 py-1.5 text-sm"
-                                  value={s.marks} placeholder="0"
+                                  value={s.marks} placeholder="—"
                                   onChange={(e) => updateStudentField(s._id, 'marks', e.target.value)} />
                               </td>
                               <td className="py-2.5 px-3">
